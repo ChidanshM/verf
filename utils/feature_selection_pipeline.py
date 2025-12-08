@@ -1,8 +1,9 @@
+# ... (Imports remain the same) ...
 import os
 import time
 import datetime
 import logging
-from tqdm import tqdm  # Import the progress bar library
+from tqdm import tqdm
 
 # Import from sibling modules
 try:
@@ -10,7 +11,6 @@ try:
 	from filesystem import find_zip_files, extract_zip, cleanup_folder
 	from loggers import setup_logger, init_csv_log, log_metric
 except ImportError:
-	# Fallback for relative execution
 	from .processor import extract_target_columns
 	from .filesystem import find_zip_files, extract_zip, cleanup_folder
 	from .loggers import setup_logger, init_csv_log, log_metric
@@ -19,7 +19,7 @@ except ImportError:
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR) 
 
-SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'ya')
+SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'YA')
 DEST_ROOT = os.path.join(PROJECT_ROOT, 'data')
 
 # Log Paths
@@ -28,29 +28,35 @@ LOG_FILE = os.path.join(PROJECT_ROOT, f"process_log_{TIMESTAMP}.txt")
 CSV_FILE = os.path.join(PROJECT_ROOT, f"size_log_{TIMESTAMP}.csv")
 
 def run_feature_selection_pipeline():
-	# 1. Setup Logs
 	setup_logger(LOG_FILE)
 	init_csv_log(CSV_FILE)
 	
-	# We use print() here because logging info might interfere with tqdm bars
+	# --- DIAGNOSTIC PRINT ---
+	abs_source = os.path.abspath(SOURCE_ROOT)
 	print(f"--- Feature Selection Pipeline Started ---")
-	print(f"Reading from: {SOURCE_ROOT}")
-	print(f"Writing to:   {DEST_ROOT}")
-	logging.info(f"--- Feature Selection Pipeline Started ---")
-
+	print(f"Looking for data in: {abs_source}")  # <--- CHECK THIS PATH IN OUTPUT
+	print(f"Writing output to:   {os.path.abspath(DEST_ROOT)}")
+	
 	if not os.path.exists(SOURCE_ROOT):
-		logging.error("Source directory missing.")
-		print(f"Error: Directory not found: {SOURCE_ROOT}")
+		logging.error(f"Directory not found: {abs_source}")
+		print(f"\n[ERROR] Python cannot see the folder: {abs_source}")
+		print("Please check that your 'DATA' folder is spelled exactly right (case sensitive).")
 		return
 
 	# 2. Get Work List
 	zip_files = find_zip_files(SOURCE_ROOT)
+	print(f"Found {len(zip_files)} zip files.")
 	logging.info(f"Found {len(zip_files)} subject archives to process.")
-	print(f"Found {len(zip_files)} subject archives.")
 
-	# 3. Processing Loop (Outer Progress Bar)
-	# desc="Subjects" labels the bar. unit="subj" shows "1.5 subj/s" speed.
+	# 3. Processing Loop
+	if len(zip_files) == 0:
+		print("\n[WARNING] No zip files found!")
+		print("Check: Are the files inside subfolders? Are they definitely .zip files?")
+		return
+
 	for zip_path in tqdm(zip_files, desc="Processing Subjects", unit="subj"):
+		# ... (Rest of the loop logic remains identical to previous version) ...
+		# ... (Include the Try/Except block, Inner loop, Cleanup, etc.) ...
 		
 		subject_id = os.path.basename(zip_path).replace('.zip', '')
 		
@@ -71,7 +77,7 @@ def run_feature_selection_pipeline():
 				csv_files_to_process = []
 				for root, _, files in os.walk(temp_extract_path):
 					for file in files:
-						if file.endswith('.csv'):
+						if file.lower().endswith('.csv'):
 							csv_files_to_process.append(os.path.join(root, file))
 				
 				# Inner Processing Loop (Inner Progress Bar)
@@ -79,7 +85,7 @@ def run_feature_selection_pipeline():
 				for input_csv in tqdm(csv_files_to_process, desc=f"  Trials ({subject_id})", unit="file", leave=False):
 					
 					file_name = os.path.basename(input_csv)
-					
+
 					# Naming convention: s001_...-raw_targets.csv
 					output_csv_name = file_name.replace('.csv', '-raw_targets.csv')
 					output_csv = os.path.join(final_dest_path, output_csv_name)
