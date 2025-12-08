@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 # --- CONFIGURATION ---
 ARTICLE_ID = 29371796 
-OUTPUT_DIR = "NONAN_MiddleAged_Data"
+OUTPUT_DIR = "../DATA/ma"
 # ---------------------
 
 def download_article_files():
