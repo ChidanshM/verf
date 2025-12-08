@@ -23,7 +23,7 @@ PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'YA')
 
 # 2. OUTPUT: Final Data Destination
-DEST_ROOT = os.path.join(PROJECT_ROOT, 'data')
+DEST_ROOT = os.path.join(PROJECT_ROOT, 'database','fep')
 
 # 3. TEMP: Temporary Workspace (New!)
 # We will extract files here so we never clutter the 'DATA' folder
