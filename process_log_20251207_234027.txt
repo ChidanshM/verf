@@ -1,0 +1,4 @@
+2025-12-07 23:41:00,511 - INFO - Cleaned up C:\Users\Chida\0zProject\verf\DATA\YA\set_01\S001
+2025-12-07 23:41:00,512 - INFO - Subject S001 completed.
+2025-12-07 23:41:33,594 - INFO - Cleaned up C:\Users\Chida\0zProject\verf\DATA\YA\set_01\S002
+2025-12-07 23:41:33,594 - INFO - Subject S002 completed.

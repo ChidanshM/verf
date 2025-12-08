@@ -2,6 +2,7 @@ import os
 import time
 import datetime
 import logging
+import shutil  # Added for removing the temp root
 from tqdm import tqdm
 
 # Import from sibling modules
@@ -18,65 +19,77 @@ except ImportError:
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR) 
 
+# 1. INPUT: Read-Only Source
 SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'YA')
+
+# 2. OUTPUT: Final Data Destination
 DEST_ROOT = os.path.join(PROJECT_ROOT, 'data')
 
+# 3. TEMP: Temporary Workspace (New!)
+# We will extract files here so we never clutter the 'DATA' folder
+TEMP_ROOT = os.path.join(PROJECT_ROOT, 'temp_workspace')
+
+# Log Paths
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 LOG_FILE = os.path.join(PROJECT_ROOT, f"process_log_{TIMESTAMP}.txt")
 CSV_FILE = os.path.join(PROJECT_ROOT, f"size_log_{TIMESTAMP}.csv")
 
 def run_feature_selection_pipeline():
-	# Setup File Logging ONLY (No console handler to avoid messing up tqdm)
-	logging.basicConfig(
-		filename=LOG_FILE,
-		level=logging.INFO,
-		format='%(asctime)s - %(levelname)s - %(message)s'
-	)
+	setup_logger(LOG_FILE)
 	init_csv_log(CSV_FILE)
 	
 	print(f"--- Feature Selection Pipeline ---")
-	print(f"Logs: {LOG_FILE}")
+	print(f"Input (Read):   {SOURCE_ROOT}")
+	print(f"Work Area:      {TEMP_ROOT}")  # Files appear here momentarily
+	print(f"Output (Write): {DEST_ROOT}")  # Final files land here
 
 	if not os.path.exists(SOURCE_ROOT):
-		print(f"Error: Source {SOURCE_ROOT} not found.")
+		print(f"Error: Source directory {SOURCE_ROOT} not found.")
 		return
 
-	# 1. Get Work List
+	# Ensure output and temp dirs exist
+	if not os.path.exists(DEST_ROOT):
+		os.makedirs(DEST_ROOT)
+	if not os.path.exists(TEMP_ROOT):
+		os.makedirs(TEMP_ROOT)
+
+	# 1. Find Zips
 	zip_files = find_zip_files(SOURCE_ROOT)
 	
 	if not zip_files:
 		print("No zip files found.")
 		return
 
-	# 2. Outer Loop: Overall Processing
-	# This bar stays visible until the end
+	# 2. Outer Loop
 	with tqdm(total=len(zip_files), desc="Overall Processing", unit="subj") as pbar_outer:
 		
 		for zip_path in zip_files:
 			subject_id = os.path.basename(zip_path).replace('.zip', '')
 			
-			# Paths
-			temp_extract_path = os.path.join(os.path.dirname(zip_path), subject_id)
+			# --- PATH LOGIC UPDATE ---
+			# Extract to: verf/temp_workspace/s041
+			# NOT: verf/DATA/YA/set_01/s041
+			temp_extract_path = os.path.join(TEMP_ROOT, subject_id)
+			
+			# Final Dest: verf/data/s041
 			final_dest_path = os.path.join(DEST_ROOT, subject_id)
 			
 			if not os.path.exists(final_dest_path):
 				os.makedirs(final_dest_path)
 
 			try:
-				# A. Unzip
+				# A. Unzip (into Temp)
 				if extract_zip(zip_path, temp_extract_path):
 					
 					# B. Find Valid CSVs
 					valid_csvs = []
 					for root, _, files in os.walk(temp_extract_path):
 						for file in files:
-							# STRICT FILTER: Only files starting with 'S' (Subject Data)
-							# This ignores 'Gaitprint_Noraxon...' and other junk inside the zip
+							# Strict Filter: Only process 'S' files
 							if file.lower().endswith('.csv') and file.upper().startswith('S'):
 								valid_csvs.append(os.path.join(root, file))
 					
-					# Inner Loop: Single Subject Processing
-					# This bar appears for 1.5 mins then disappears (leave=False)
+					# C. Process Files
 					if valid_csvs:
 						for input_csv in tqdm(valid_csvs, desc=f"Processing {subject_id}", unit="file", leave=False):
 							
@@ -87,10 +100,9 @@ def run_feature_selection_pipeline():
 							success, o_size, n_size = extract_target_columns(input_csv, output_csv)
 							
 							if success:
-								# Log to file ONLY, not console
 								log_metric(CSV_FILE, file_name, o_size, output_csv_name, n_size)
 					
-					# C. Cleanup
+					# D. Cleanup Subject Temp Folder
 					cleanup_folder(temp_extract_path)
 					
 					logging.info(f"Subject {subject_id} completed.")
@@ -101,8 +113,14 @@ def run_feature_selection_pipeline():
 			except Exception as e:
 				logging.error(f"Error on {subject_id}: {e}")
 			
-			# Update Outer Bar
 			pbar_outer.update(1)
+
+	# Final cleanup of the main temp folder
+	try:
+		if os.path.exists(TEMP_ROOT):
+			shutil.rmtree(TEMP_ROOT)
+	except:
+		pass
 
 	print(f"\nDone. Processed data saved to: {DEST_ROOT}")
 
