@@ -20,7 +20,7 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CURRENT_DIR) 
 
 # 1. INPUT: Read-Only Source (Looking in verf/DATA/ma)
-SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'ma')
+SOURCE_ROOT = os.path.join(PROJECT_ROOT, 'DATA', 'ya')
 
 # 2. OUTPUT: Final Data Destination
 DEST_ROOT = os.path.join(PROJECT_ROOT, 'database', 'fep')
