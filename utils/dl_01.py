@@ -4,7 +4,8 @@ from tqdm import tqdm
 
 # The Collection ID for "NONAN GaitPrint"
 COLLECTION_ID = [6415061]
-OUTPUT_DIR = "NONAN_GaitPrint_Data"
+OUTPUT_DIR = os.path.join("DATA","ya")
+
 
 def download_collection(c_id):
     # Create output directory

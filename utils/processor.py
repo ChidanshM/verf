@@ -1,14 +1,20 @@
 import pandas as pd
 import os
 import logging
+import io
 
 # Define the path to the config file (same directory as this script)
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(CURRENT_DIR, 'target_columns.csv')
 
-def extract_target_columns(input_file, output_file):
+def extract_target_columns(input_source, output_file, input_size=0):
 	"""
 	Filters CSV for specific biometric columns defined in target_columns.csv.
+	
+	Args:
+		input_source: Can be a file path (str) OR a file-like object (from zip)
+		output_file: Path to save the processed CSV
+		input_size: Size of original file (passed in manually if reading from zip)
 	"""
 	try:
 		# 1. Load the target columns from the external CSV
@@ -20,28 +26,39 @@ def extract_target_columns(input_file, output_file):
 		config_df = pd.read_csv(CONFIG_FILE)
 		target_columns = config_df.iloc[:, 0].tolist()
 
-		# 2. Get file size for logging
-		orig_size = os.path.getsize(input_file)
+		# 2. Handle Input Source (Path vs File Object)
+		if isinstance(input_source, str):
+			# It's a file path
+			if os.path.exists(input_source):
+				input_size = os.path.getsize(input_source)
+			# pandas can read the path directly
+			df = pd.read_csv(input_source, usecols=lambda c: c in target_columns)
+		else:
+			# It's a file object (from zip)
+			# pandas can read the file object directly
+			df = pd.read_csv(input_source, usecols=lambda c: c in target_columns)
 		
-		# 3. Read the Data (Only loading the columns we need)
-		# Note: usecols is faster and saves memory compared to reading the whole file
-		df = pd.read_csv(input_file, usecols=lambda c: c in target_columns)
-		
-		# 4. Reorder columns to match the config list exactly
-		# This ensures every file in your dataset has the exact same structure
+		# 3. Reorder columns to match the config list exactly
 		existing_cols = [c for c in target_columns if c in df.columns]
 		
 		# Optional: Warn if columns are missing
 		if len(existing_cols) < len(target_columns):
 			missing = set(target_columns) - set(existing_cols)
-			logging.warning(f"File {os.path.basename(input_file)} is missing {len(missing)} columns.")
+			# Only warn if we can get a filename, otherwise generic warning
+			name = getattr(input_source, 'name', 'unknown_file')
+			logging.warning(f"File {name} is missing {len(missing)} columns.")
 
 		df = df[existing_cols]
 		
-		# 5. Save
+		# 4. Save
 		df.to_csv(output_file, index=False)
-		return True, orig_size, os.path.getsize(output_file)
+		
+		# Calculate new size
+		output_size = os.path.getsize(output_file) if os.path.exists(output_file) else 0
+		
+		return True, input_size, output_size
 
 	except Exception as e:
-		logging.error(f"Error processing {input_file}: {e}")
+		name = getattr(input_source, 'name', 'unknown_file')
+		logging.error(f"Error processing {name}: {e}")
 		return False, 0, 0
