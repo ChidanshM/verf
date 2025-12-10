@@ -77,7 +77,7 @@ def run_feature_selection_pipeline():
 						for zip_info in tqdm(valid_files, desc=f"Processing {subject_id}", unit="file", leave=False):
 							
 							file_name = os.path.basename(zip_info.filename)
-							output_csv_name = file_name.replace('.csv', '-raw_targets.csv')
+							output_csv_name = file_name.replace('.csv', '-target_features.csv')
 							output_csv_path = os.path.join(final_dest_path, output_csv_name)
 
 							# OPEN FILE IN MEMORY
