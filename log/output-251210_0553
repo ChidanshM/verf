@@ -1,0 +1,8 @@
+--- Feature Selection Pipeline ---
+Input (Read):   /home/adhyeta/0zProject/verf/DATA
+Output (Write): /home/adhyeta/0zProject/verf/database/fep
+Mode:           In-Memory Processing (No Temp Folder)
+DEBUG: Searching for zips in /home/adhyeta/0zProject/verf/DATA...
+2025-12-10 05:57:11,108 - INFO - Subject S098 completed.
+2025-12-10 05:57:57,584 - INFO - Subject S092 completed.
+2025-12-10 05:58:42,921 - INFO - Subject S097 completed.
