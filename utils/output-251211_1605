@@ -1,0 +1,456 @@
+
+--- Diagnosing: S030_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B02_T01-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-x (mG)    4
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-y (mG)    4
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-z (mG)    4
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-x (deg/s)    4
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-y (deg/s)    4
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-z (deg/s)    4
+Noraxon MyoMotion-Segments-Pelvis-Acceleration-x (mG)         4
+Noraxon MyoMotion-Segments-Pelvis-Acceleration-y (mG)         4
+Noraxon MyoMotion-Segments-Pelvis-Acceleration-z (mG)         4
+Noraxon MyoMotion-Segments-Pelvis-Gyroscope-x (deg/s)         4
+Noraxon MyoMotion-Segments-Pelvis-Gyroscope-y (deg/s)         4
+Noraxon MyoMotion-Segments-Pelvis-Gyroscope-z (deg/s)         4
+dtype: int64
+
+--- Diagnosing: S030_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S030_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B03_T02-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)        8
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)        8
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)        8
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-x (mG)       20
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-y (mG)       20
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-z (mG)       20
+Noraxon MyoMotion-Segments-Foot RT-Acceleration-x (mG)     47969
+Noraxon MyoMotion-Segments-Foot RT-Acceleration-y (mG)     47969
+Noraxon MyoMotion-Segments-Foot RT-Acceleration-z (mG)     47969
+Noraxon MyoMotion-Segments-Foot RT-Gyroscope-x (deg/s)     47969
+Noraxon MyoMotion-Segments-Foot RT-Gyroscope-y (deg/s)     47969
+Noraxon MyoMotion-Segments-Foot RT-Gyroscope-z (deg/s)     47969
+dtype: int64
+
+--- Diagnosing: S012_G01_D01_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S012_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B02_T01-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-x (deg/s)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-y (deg/s)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-z (deg/s)    4
+dtype: int64
+
+--- Diagnosing: S016_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S016_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D01_B01_T01-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)    108
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)    108
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)    108
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-x (mG)      4
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-y (mG)      4
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-z (mG)      4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-x (deg/s)      4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-y (deg/s)      4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-z (deg/s)      4
+dtype: int64
+
+--- Diagnosing: S034_G01_D01_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S034_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B03_T02-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-x (deg/s)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-y (deg/s)    4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-z (deg/s)    4
+dtype: int64
+
+--- Diagnosing: S031_G01_D02_B02_T01-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)    8
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)    8
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)    8
+dtype: int64
+
+--- Diagnosing: S031_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B01_T03-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)    40
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)    40
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)    40
+dtype: int64
+
+--- Diagnosing: S031_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S031_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B02_T02-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-x (mG)    4
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-y (mG)    4
+Noraxon MyoMotion-Segments-Shank RT-Acceleration-z (mG)    4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-x (deg/s)    4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-y (deg/s)    4
+Noraxon MyoMotion-Segments-Shank RT-Gyroscope-z (deg/s)    4
+dtype: int64
+
+--- Diagnosing: S033_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S033_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B01_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B01_T01-target_features.csv ---
+❌ FAILURE: Raw CSV contains NaN values.
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-x (mG)    47969
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-y (mG)    47969
+Noraxon MyoMotion-Segments-Upper spine-Acceleration-z (mG)    47969
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-x (deg/s)    47969
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-y (deg/s)    47969
+Noraxon MyoMotion-Segments-Upper spine-Gyroscope-z (deg/s)    47969
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-x (mG)           4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-y (mG)           4
+Noraxon MyoMotion-Segments-Shank LT-Acceleration-z (mG)           4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-x (deg/s)           4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-y (deg/s)           4
+Noraxon MyoMotion-Segments-Shank LT-Gyroscope-z (deg/s)           4
+dtype: int64
+
+--- Diagnosing: S004_G01_D02_B02_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B03_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B02_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B01_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D01_B01_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B03_T01-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B02_T02-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).
+
+--- Diagnosing: S004_G01_D02_B03_T03-target_features.csv ---
+✅ Raw CSV looks healthy. The bug might be in normalization (Divide by Zero).

@@ -1,0 +1,15 @@
+2025-12-11 16:22:13,960 - INFO - Scanning database at: /home/adhyeta/0zProject/verf/DATA/fep/er
+2025-12-11 16:22:13,961 - INFO - Found 126 CSV files. Checking for corruption...
+2025-12-11 16:22:14,836 - WARNING - CORRUPT (NaNs): S004_G01_D01_B01_T01-target_features.csv
+2025-12-11 16:22:19,530 - WARNING - CORRUPT (NaNs): S033_G01_D02_B02_T02-target_features.csv
+2025-12-11 16:22:20,367 - WARNING - CORRUPT (NaNs): S016_G01_D01_B02_T01-target_features.csv
+2025-12-11 16:22:25,133 - WARNING - CORRUPT (NaNs): S030_G01_D01_B02_T01-target_features.csv
+2025-12-11 16:22:27,503 - WARNING - CORRUPT (NaNs): S031_G01_D02_B03_T02-target_features.csv
+2025-12-11 16:22:27,670 - WARNING - CORRUPT (NaNs): S031_G01_D02_B02_T01-target_features.csv
+2025-12-11 16:22:28,660 - WARNING - CORRUPT (NaNs): S031_G01_D02_B01_T03-target_features.csv
+2025-12-11 16:22:31,117 - WARNING - CORRUPT (NaNs): S012_G01_D01_B03_T02-target_features.csv
+2025-12-11 16:22:35,973 - WARNING - CORRUPT (NaNs): S034_G01_D01_B01_T01-target_features.csv
+2025-12-11 16:22:36,527 - INFO - ------------------------------
+2025-12-11 16:22:36,527 - INFO - Found 9 corrupted files.
+2025-12-11 16:22:36,527 - INFO - Cleanup Complete. Moved 9 files to 'quarantined_files'.
+2025-12-11 16:22:36,527 - INFO - You can now safely re-run 'python -m utils.prepare_data'.

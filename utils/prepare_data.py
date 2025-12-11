@@ -9,7 +9,7 @@ import logging
 from tqdm import tqdm  # Requires: pip install tqdm
 
 # --- CONFIGURATION ---
-INPUT_FOLDER = os.path.join( "database", "fep") 
+INPUT_FOLDER = os.path.join( "DATA", "fep","er") 
 OUTPUT_FOLDER = os.path.join( "database","processed_tensors") 
 LOG_FILE = "data_preparation.log"
 

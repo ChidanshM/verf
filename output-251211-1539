@@ -1,0 +1,10 @@
+Checking 84 files for corruption...
+❌ CORRUPTION found in S030.pt (Pelvis)
+❌ CORRUPTION found in S012.pt (Shank_LT)
+❌ CORRUPTION found in S016.pt (Shank_LT)
+❌ CORRUPTION found in S034.pt (Shank_LT)
+❌ CORRUPTION found in S031.pt (Shank_LT)
+❌ CORRUPTION found in S033.pt (Shank_RT)
+❌ CORRUPTION found in S004.pt (Upper_Spine)
+
+Found 7 bad files. You should delete them or re-run prepare_data.
