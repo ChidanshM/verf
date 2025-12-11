@@ -30,7 +30,7 @@ except ImportError:
 # Data is in verf/processed_tensors, but we are in verf/train
 # So we go ".." (up one level) -> "processed_tensors"
 DATA_DIR = os.path.join(parent_dir, "processed_tensors")
-
+NUMBER_OF_LIFE=42
 BATCH_SIZE = 64
 EPOCHS = 30
 LEARNING_RATE = 0.001
@@ -107,7 +107,7 @@ def create_dataloaders(data_dir):
 		logger.error(f"No .pt files found in {data_dir}!")
 		raise FileNotFoundError(f"Check your path. Current target: {os.path.abspath(data_dir)}")
 
-	np.random.seed(42)
+	np.random.seed(NUMBER_OF_LIFE)
 	np.random.shuffle(files)
 	
 	master_data = {}
@@ -167,7 +167,7 @@ class SixStreamFusionNet(nn.Module):
 		self.fusion = nn.Sequential(
 			nn.Linear(384, 128),
 			nn.ReLU(),
-			nn.Dropout(0.3),
+			nn.Dropout(0.5),
 			nn.Linear(128, 64)
 		)
 	def forward(self, inputs):
@@ -201,7 +201,8 @@ def main():
 	
 	model = SiameseFusion().to(device)
 	criterion = TripletLoss(margin=MARGIN)
-	optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+	optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+	#optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 	scaler = GradScaler()
 
 	best_val_loss = float('inf')
