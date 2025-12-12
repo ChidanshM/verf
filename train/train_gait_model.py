@@ -201,8 +201,10 @@ def main():
 	
 	model = SiameseFusion().to(device)
 	criterion = TripletLoss(margin=MARGIN)
+	optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-3)
 	optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
 	#optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 	scaler = GradScaler()
 
 	best_val_loss = float('inf')
@@ -254,10 +256,11 @@ def main():
 				val_loss += loss.item()
 		
 		avg_val_loss = val_loss / len(val_loader)
-		epoch_time = time.time() - start_time
+		epoch_time = time.time() - start_time		
 		
 		logger.info(f"Epoch [{epoch+1}/{EPOCHS}] Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s")
-		
+		scheduler.step(avg_val_loss)
+
 		if avg_val_loss < best_val_loss:
 			best_val_loss = avg_val_loss
 			torch.save(model.state_dict(), save_path)
