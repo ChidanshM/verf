@@ -1,0 +1,14 @@
+(envp12g) adhyeta@pop-os:~/0zProject/verf$ python -m train.train_gait_model > t_tgm-251211-1922
+INFO:Trainer:Starting Training on: cuda
+INFO:Trainer:Loading .pt files from: /home/adhyeta/0zProject/verf/processed_tensors
+Loading Data: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 84/84 [00:23<00:00,  3.55it/s]
+INFO:Trainer:Split: Train=58, Val=12
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/adhyeta/0zProject/verf/train/train_gait_model.py", line 272, in <module>
+    main()
+  File "/home/adhyeta/0zProject/verf/train/train_gait_model.py", line 207, in main
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: ReduceLROnPlateau.__init__() got an unexpected keyword argument 'verbose'

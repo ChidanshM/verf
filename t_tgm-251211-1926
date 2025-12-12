@@ -1,0 +1,41 @@
+envp12g) adhyeta@pop-os:~/0zProject/verf$ python -m train.train_gait_model > t_tgm-251211-1922
+INFO:Trainer:Starting Training on: cuda
+INFO:Trainer:Loading .pt files from: /home/adhyeta/0zProject/verf/processed_tensors
+Loading Data: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 84/84 [00:23<00:00,  3.55it/s]
+INFO:Trainer:Split: Train=58, Val=12
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/adhyeta/0zProject/verf/train/train_gait_model.py", line 272, in <module>
+    main()
+  File "/home/adhyeta/0zProject/verf/train/train_gait_model.py", line 207, in main
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: ReduceLROnPlateau.__init__() got an unexpected keyword argument 'verbose'
+(envp12g) adhyeta@pop-os:~/0zProject/verf$ python -m train.train_gait_model > t_tgm-251211-1926
+INFO:Trainer:Starting Training on: cuda
+INFO:Trainer:Loading .pt files from: /home/adhyeta/0zProject/verf/processed_tensors
+Loading Data: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 84/84 [00:23<00:00,  3.64it/s]
+INFO:Trainer:Split: Train=58, Val=12
+/home/adhyeta/0zProject/verf/train/train_gait_model.py:208: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler()
+INFO:Trainer:Beginning 30 epochs...
+Epoch 1:   0%|                                                                                                                                                                                | 0/15229 [00:00<?, ?it/s]/home/adhyeta/0zProject/verf/train/train_gait_model.py:231: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast():
+/home/adhyeta/0zProject/verf/train/train_gait_model.py:253: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.                                  
+  with autocast():
+INFO:Trainer:Epoch [1/30] Train: 0.0584 | Val: 0.0474 | 383.3s
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [2/30] Train: 0.0340 | Val: 0.0449 | 346.5s                                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [3/30] Train: 0.0320 | Val: 0.0503 | 346.1s                                                                                                                                                          
+INFO:Trainer:Epoch [4/30] Train: 0.0306 | Val: 0.0452 | 371.2s                                                                                                                                                          
+INFO:Trainer:Epoch [5/30] Train: 0.0302 | Val: 0.0450 | 370.3s                                                                                                                                                          
+Epoch 6:  83%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████▌                           | 12677/15229 [05:05<01:12, 35.03it/s]Traceback (most recent call last):                                                                                                                                                                                      
+
+
+>>>
+optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
+
+it didn't matter adding the AdamW
