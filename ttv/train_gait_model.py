@@ -7,8 +7,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from tqdm import tqdm
+from datetime import datetime
+import argparse
+from pathlib import Path
+from dataclasses import dataclass
+
+
+timestamp = datetime.now().strftime("%y%m%d_%H%M")
+print(timestamp)
 
 # --- 1. SETUP PATHS (CRITICAL CHANGE) ---
 # Add the parent folder ('verf') to Python path so we can import 'utils'
@@ -30,14 +38,36 @@ except ImportError:
 # Data is in verf/processed_tensors, but we are in verf/train
 # So we go ".." (up one level) -> "processed_tensors"
 DATA_DIR = os.path.join(parent_dir, "processed_tensors")
-NUMBER_OF_LIFE=42
-BATCH_SIZE = 64
-EPOCHS = 30
-LEARNING_RATE = 0.001
-MARGIN = 0.2
-INPUT_CHANNELS = 6
-WINDOW_SIZE = 200
-STRIDE = 50
+
+
+@dataclass(frozen=True)
+class Config:
+    seed: int = 42 #NUMBER_OF_LIFE
+    batch_size: int = 64
+    epochs: int = 30
+    lr: float = 1e-3
+    margin: float = 0.2
+    input_channels: int = 6
+    window_size: int = 200
+    stride: int = 50
+    streams: tuple = ("Pelvis","Upper_Spine","Shank_LT","Foot_LT","Shank_RT","Foot_RT")
+
+CFG = Config()
+
+MODEL_SIGNATURE = {
+	"model_name": "SiameseFusion/SixStreamFusionNet",
+	"input_channels": CFG.input_channels,
+	"window_size": CFG.window_size,
+	"streams": list(CFG.streams),
+	"embedding_dim": 64,
+	"fusion_in": 64 * len(CFG.streams),
+}
+
+TRAINING_SIGNATURE = {
+	"optimizer_type": "AdamW",
+	"scheduler_type": "ReduceLROnPlateau",
+}
+
 
 # --- 3. DATASET CLASS (Same as before) ---
 class SixStreamGaitDataset(Dataset):
@@ -107,7 +137,7 @@ def create_dataloaders(data_dir):
 		logger.error(f"No .pt files found in {data_dir}!")
 		raise FileNotFoundError(f"Check your path. Current target: {os.path.abspath(data_dir)}")
 
-	np.random.seed(NUMBER_OF_LIFE)
+	np.random.seed(CFG.seed)
 	np.random.shuffle(files)
 	
 	master_data = {}
@@ -139,8 +169,9 @@ def create_dataloaders(data_dir):
 
 	logger.info(f"Split: Train={len(train_ids)}, Val={len(val_ids)}")
 	
-	train_ds = SixStreamGaitDataset(subset_data(train_ids), window_size=WINDOW_SIZE, stride=STRIDE, mode='train')
-	val_ds = SixStreamGaitDataset(subset_data(val_ids), window_size=WINDOW_SIZE, stride=WINDOW_SIZE, mode='train')
+	train_ds = SixStreamGaitDataset(subset_data(train_ids), cfg=CFG, mode="train")
+	val_ds   = SixStreamGaitDataset(subset_data(val_ids),   cfg=CFG, mode="train")
+
 	
 	train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=0, pin_memory=True)
 	val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
@@ -149,24 +180,33 @@ def create_dataloaders(data_dir):
 
 # --- 5. MODEL ARCHITECTURE (Same as before) ---
 class FeatureExtractor(nn.Module):
-	def __init__(self):
-		super(FeatureExtractor, self).__init__()
+class FeatureExtractor(nn.Module):
+	def __init__(self, input_channels: int, out_channels1=32, out_channels2=64):
+		super().__init__()
 		self.cnn = nn.Sequential(
-			nn.Conv1d(INPUT_CHANNELS, 32, kernel_size=3, padding=1),
-			nn.BatchNorm1d(32),
+			nn.Conv1d(input_channels, out_channels1, kernel_size=3, padding=1),
+			nn.BatchNorm1d(out_channels1),
 			nn.ReLU(),
 			nn.MaxPool1d(2),
-			nn.Conv1d(32, 64, kernel_size=3, padding=1),
-			nn.BatchNorm1d(64),
+			nn.Conv1d(out_channels1, out_channels2, kernel_size=3, padding=1),
+			nn.BatchNorm1d(out_channels2),
 			nn.ReLU(),
-			nn.AdaptiveAvgPool1d(1)
+			nn.AdaptiveAvgPool1d(1),
 		)
 	def forward(self, x):
 		return self.cnn(x).squeeze(-1)
 
 class SixStreamFusionNet(nn.Module):
-	def __init__(self):
+class SixStreamGaitDataset(Dataset):
+	def __init__(self, subjects_data, cfg: Config, mode="train"):
 		super(SixStreamFusionNet, self).__init__()
+		self.cfg = cfg
+		self.window_size = cfg.window_size
+		self.mode = mode
+		self.samples = []
+		self.data = subjects_data
+		self.subject_ids = list(subjects_data.keys())
+		self.sensors = list(cfg.streams)
 		self.branches = nn.ModuleDict({
 			'Pelvis': FeatureExtractor(),
 			'Upper_Spine': FeatureExtractor(),
@@ -202,9 +242,56 @@ class TripletLoss(nn.Module):
 		dist_neg = torch.pow(anchor - negative, 2).sum(dim=1)
 		losses = torch.relu(dist_pos - dist_neg + self.margin)
 		return losses.mean()
+	
+def _find_checkpoints(parent_dir: str):
+	p = Path(parent_dir)
+	return sorted(p.glob("best_gait_model-*.pth"), key=lambda x: x.stat().st_mtime, reverse=True)
+
+def _resolve_resume_path(parent_dir: str, resume: str | None):
+	"""
+	resume:
+	  - None      => prompt if checkpoints exist
+	  - "latest"  => pick newest checkpoint
+	  - "<path>"  => use that file (relative paths resolved from parent_dir)
+	Returns Path or None.
+	"""
+	checkpoints = _find_checkpoints(parent_dir)
+
+	if resume is None or resume == "prompt":
+		if not checkpoints:
+			return None
+
+		print("\nFound existing checkpoints:")
+		for i, ck in enumerate(checkpoints[:10], start=1):
+			print(f"  [{i}] {ck.name}")
+		print("  [0] Start fresh\n")
+
+		try:
+			choice = input("Resume from which checkpoint? (number, or 0): ").strip()
+		except EOFError:
+			return None
+
+		if not choice.isdigit():
+			return None
+
+		idx = int(choice)
+		if idx == 0:
+			return None
+		if 1 <= idx <= min(len(checkpoints), 10):
+			return checkpoints[idx - 1]
+		return None
+
+	if resume.lower() == "latest":
+		return checkpoints[0] if checkpoints else None
+
+	rp = Path(resume)
+	if not rp.is_absolute():
+		rp = Path(parent_dir) / rp
+	return rp if rp.exists() else None
+
 
 # --- 6. MAIN EXECUTION ---
-def main():
+def main(args):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	logger.info(f"Starting Training on: {device}")
 	
@@ -213,43 +300,52 @@ def main():
 	model = SiameseFusion().to(device)
 	criterion = TripletLoss(margin=MARGIN)
 	optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-3)
-	optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
-	#optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
-	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2, verbose=True)
-	scaler = GradScaler()
+	
+	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)#), verbose=True)
+	use_amp = (device.type == "cuda")
+	scaler = GradScaler("cuda", enabled=use_amp)
 
 	best_val_loss = float('inf')
 	
 	# Save path relative to this script
-	save_path = os.path.join(parent_dir, "best_gait_model.pth")
+	save_path = os.path.join(parent_dir, f"best_gait_model-{timestamp}.pth")
 
-	# [INSERT THIS BEFORE THE LOOP]
 	start_epoch = 0
-	
-	if os.path.exists(save_path):
-		logger.info(f"Checkpoint found at {save_path}. Loading...")
-		checkpoint = torch.load(save_path)
-		
-		# 1. Load Model Weights
-		model.load_state_dict(checkpoint['model_state_dict'])
-		
-		# 2. Load Optimizer (Momentum buffers)
-		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-		
-		# 3. Load Scheduler (Patience counters)
-		# Check if key exists to support older save files
-		if 'scheduler_state_dict' in checkpoint:
-			scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-			
-		# 4. Restore Loop Variables
-		start_epoch = checkpoint['epoch']
-		best_val_loss = checkpoint['best_val_loss']
-		
-		logger.info(f"Resuming training from Epoch {start_epoch+1} with Best Loss: {best_val_loss:.4f}")
-	else:
-		logger.info("No checkpoint found. Starting fresh.")
+	best_val_loss = float("inf")
 
-	logger.info(f"Beginning {EPOCHS} epochs...")
+	# Only attempt resume if user explicitly asked
+	if args.resume is not None:
+		resume_path = _resolve_resume_path(parent_dir, args.resume)  # prompt/latest/path
+		if resume_path is None:
+			raise RuntimeError("Resume requested but no valid checkpoint selected/found.")
+		checkpoint = torch.load(str(resume_path), map_location=device)
+
+		# 1) Model architecture must match
+		if checkpoint.get("model_signature") != MODEL_SIGNATURE:
+			raise RuntimeError("Incompatible checkpoint: model architecture/signature mismatch.")
+
+		# 2) Optimiser type must match
+		ck_tr = checkpoint.get("training_signature", {})
+		if ck_tr.get("optimizer_type") != TRAINING_SIGNATURE["optimizer_type"]:
+			raise RuntimeError("Incompatible checkpoint: optimiser type mismatch.")
+
+		# 3) Scheduler type must match
+		if ck_tr.get("scheduler_type") != TRAINING_SIGNATURE["scheduler_type"]:
+			raise RuntimeError("Incompatible checkpoint: scheduler type mismatch.")
+
+		# Load everything only if all match
+		model.load_state_dict(checkpoint["model_state_dict"])
+		optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+		if "scheduler_state_dict" in checkpoint:
+			scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+		start_epoch = checkpoint.get("epoch", 0)
+		best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+
+		logger.info(f"Resumed from {resume_path} at epoch {start_epoch+1}, best_val_loss={best_val_loss:.4f}")
+	else:
+		logger.info("Starting fresh (no --resume provided).")
+
 	
 	for epoch in range(start_epoch,EPOCHS+start_epoch):
 		start_time = time.time()
@@ -265,7 +361,7 @@ def main():
 				neg[k] = neg[k].to(device, non_blocking=True)
 			
 			optimizer.zero_grad()
-			with autocast():
+			with autocast(device_type=device.type, enabled=use_amp):
 				emb_a, emb_p, emb_n = model(anchor, pos, neg)
 				loss = criterion(emb_a, emb_p, emb_n)
 			
@@ -287,7 +383,7 @@ def main():
 					pos[k] = pos[k].to(device)
 					neg[k] = neg[k].to(device)
 				
-				with autocast():
+				with autocast(device_type=device.type, enabled=use_amp):
 					ea, ep, en = model(anchor, pos, neg)
 					loss = criterion(ea, ep, en)
 				val_loss += loss.item()
@@ -303,14 +399,17 @@ def main():
 			best_val_loss = avg_val_loss
 			
 			# Create a comprehensive checkpoint dictionary
-			checkpoint = {
-				'epoch': epoch + 1,
-				'model_state_dict': model.state_dict(),
-				'optimizer_state_dict': optimizer.state_dict(),
-				'scheduler_state_dict': scheduler.state_dict(),
-				'best_val_loss': best_val_loss
-			}
 			
+			checkpoint = {
+				"epoch": epoch + 1,
+				"model_state_dict": model.state_dict(),
+				"optimizer_state_dict": optimizer.state_dict(),
+				"scheduler_state_dict": scheduler.state_dict(),
+				"best_val_loss": best_val_loss,
+				"model_signature": MODEL_SIGNATURE,
+				"training_signature": TRAINING_SIGNATURE,
+			}
+
 			torch.save(checkpoint, save_path)
 			logger.info(f"--> New Best Model Saved! (Loss: {best_val_loss:.4f})")
 		
@@ -322,4 +421,14 @@ def main():
 	logger.info("Training Complete.")
 
 if __name__ == "__main__":
-	main()
+	parser = argparse.ArgumentParser()
+	parser.add_argument(
+		"--resume",
+		nargs="?",
+		const="prompt",
+		default=None,
+		help='Resume training. Use "--resume" to prompt, "--resume latest", or "--resume <path/to/.pth>".',
+	)
+
+	args = parser.parse_args()
+	main(args)
