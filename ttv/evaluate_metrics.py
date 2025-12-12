@@ -14,7 +14,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from train.train_gait_model import SiameseFusion, SixStreamGaitDataset
+from ttv.train_gait_model import SiameseFusion, SixStreamGaitDataset
 
 # --- CONFIGURATION ---
 DATA_DIR = os.path.join(parent_dir, "processed_tensors")

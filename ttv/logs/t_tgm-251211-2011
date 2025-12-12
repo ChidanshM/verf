@@ -1,0 +1,66 @@
+$ python -m train.train_gait_model > t_tgm-251211-2011
+INFO:Trainer:Starting Training on: cuda
+INFO:Trainer:Loading .pt files from: verf/processed_tensors
+Loading Data: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 84/84 [00:23<00:00,  3.52it/s]
+INFO:Trainer:Split: Train=58, Val=12
+verf/train/train_gait_model.py:208: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler()
+INFO:Trainer:Beginning 30 epochs...
+Epoch 1:   0%|                                                                                                                                                                                | 0/15229 [00:00<?, ?it/s]verf/train/train_gait_model.py:231: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast():
+verf/train/train_gait_model.py:253: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.                                  
+  with autocast():
+
+  
+INFO:Trainer:Epoch [1/30] Train: 0.0962 | Val: 0.0991 | 457.0s | LR: 0.001000
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [2/30] Train: 0.0818 | Val: 0.0838 | 354.3s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [3/30] Train: 0.0548 | Val: 0.0499 | 417.0s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [4/30] Train: 0.0431 | Val: 0.0494 | 764.0s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [5/30] Train: 0.0356 | Val: 0.0462 | 419.1s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [6/30] Train: 0.0311 | Val: 0.0493 | 384.3s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:Epoch [7/30] Train: 0.0291 | Val: 0.0485 | 375.7s | LR: 0.001000                                                                                                                                           
+INFO:Trainer:Epoch [8/30] Train: 0.0277 | Val: 0.0465 | 450.1s | LR: 0.001000                                                                                                                                           
+Epoch 9:  52%|█████████████████████████████████████████████████████████████████████████████████████▌                                                                               | 7897/15229 [03:33<02:54, 42.08it/s]INFO:Trainer:Epoch [9/30] Train: 0.0258 | Val: 0.0469 | 466.6s | LR: 0.000500                                                                                                                                           
+INFO:Trainer:Epoch [10/30] Train: 0.0256 | Val: 0.0506 | 382.0s | LR: 0.000500                                                                                                                                          
+INFO:Trainer:Epoch [11/30] Train: 0.0255 | Val: 0.0436 | 523.3s | LR: 0.000500                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [12/30] Train: 0.0254 | Val: 0.0485 | 375.2s | LR: 0.000500                                                                                                                                          
+INFO:Trainer:Epoch [13/30] Train: 0.0251 | Val: 0.0418 | 371.6s | LR: 0.000500                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [14/30] Train: 0.0249 | Val: 0.0463 | 702.3s | LR: 0.000500                                                                                                                                          
+Epoch 15:   1%|█▍                                                                                                                                                                   | 127/15229 [00:09<15:26, 16.30it/s]
+Epoch 15:  13%|█████████████████████▏                                                                                                                                              | 1963/15229 [24:04<10:10, 21.73it/s]
+                                                                                                                                                                                                                        
+INFO:Trainer:Epoch [15/30] Train: 0.0247 | Val: 0.0442 | 2144.6s | LR: 0.000500
+INFO:Trainer:Epoch [16/30] Train: 0.0246 | Val: 0.0447 | 634.5s | LR: 0.000500                                                                                                                                          
+INFO:Trainer:Epoch [17/30] Train: 0.0240 | Val: 0.0420 | 358.0s | LR: 0.000250                                                                                                                                          
+INFO:Trainer:Epoch [18/30] Train: 0.0239 | Val: 0.0409 | 326.7s | LR: 0.000250                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [19/30] Train: 0.0239 | Val: 0.0449 | 327.8s | LR: 0.000250                                                                                                                                          
+INFO:Trainer:Epoch [20/30] Train: 0.0238 | Val: 0.0464 | 329.0s | LR: 0.000250                                                                                                                                          
+INFO:Trainer:Epoch [21/30] Train: 0.0235 | Val: 0.0420 | 330.4s | LR: 0.000250                                                                                                                                          
+INFO:Trainer:Epoch [22/30] Train: 0.0232 | Val: 0.0404 | 11689.2s | LR: 0.000125                                                                                                                                        
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [23/30] Train: 0.0231 | Val: 0.0406 | 414.0s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:Epoch [24/30] Train: 0.0229 | Val: 0.0386 | 362.4s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [25/30] Train: 0.0230 | Val: 0.0426 | 369.6s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:Epoch [26/30] Train: 0.0232 | Val: 0.0422 | 361.5s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:Epoch [27/30] Train: 0.0230 | Val: 0.0384 | 397.7s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:--> New Best Model Saved!
+INFO:Trainer:Epoch [28/30] Train: 0.0229 | Val: 0.0477 | 349.1s | LR: 0.000125                                                                                                                                          
+INFO:Trainer:Epoch [29/30] Train: 0.0229 | Val: 0.0436 | 336.9s | LR: 0.000125                                                                                                                                          
+                                                                                                                                                                                                                        
+INFO:Trainer:Epoch [30/30] Train: 0.0228 | Val: 0.0398 | 389.0s | LR: 0.000125
+INFO:Trainer:Training Complete.
+$ a
+a: command not found
+$ 
+$ 
+$ 
+$ 

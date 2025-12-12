@@ -1,0 +1,14 @@
+Evaluating on: cuda
+Loading 14 Test Subjects...
+Generating Embeddings for Test Set...
+Computed 60000 embeddings. Calculating distances in blocks...
+
+Final Pairs -> Genuine: 128590800, Imposter: 82532160
+
+========================================
+FINAL RESULTS
+========================================
+EER (Equal Error Rate): 12.15%
+Optimal Threshold:      0.3342
+========================================
+ROC Curve saved to '/home/adhyeta/0zProject/verf/roc_curve.png'

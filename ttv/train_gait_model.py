@@ -123,6 +123,17 @@ def create_dataloaders(data_dir):
 	train_ids = subject_ids[:n_train]
 	val_ids = subject_ids[n_train : n_train + n_val]
 	
+	# 1. Define the Test IDs (The remaining 15%)
+	test_ids = subject_ids[n_train + n_val:]
+
+	# 2. Save them to a file so evaluation.ipynb uses the EXACT same people
+	test_ids_path = os.path.join(parent_dir, "test_subjects.txt")
+	with open(test_ids_path, "w") as f:
+		for sid in test_ids:
+			f.write(sid + "\n")
+
+	logger.info(f"Saved {len(test_ids)} test subjects to {test_ids_path}")
+	
 	def subset_data(ids):
 		return {k: master_data[k] for k in ids}
 
@@ -212,15 +223,41 @@ def main():
 	# Save path relative to this script
 	save_path = os.path.join(parent_dir, "best_gait_model.pth")
 
+	# [INSERT THIS BEFORE THE LOOP]
+	start_epoch = 0
+	
+	if os.path.exists(save_path):
+		logger.info(f"Checkpoint found at {save_path}. Loading...")
+		checkpoint = torch.load(save_path)
+		
+		# 1. Load Model Weights
+		model.load_state_dict(checkpoint['model_state_dict'])
+		
+		# 2. Load Optimizer (Momentum buffers)
+		optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		
+		# 3. Load Scheduler (Patience counters)
+		# Check if key exists to support older save files
+		if 'scheduler_state_dict' in checkpoint:
+			scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+			
+		# 4. Restore Loop Variables
+		start_epoch = checkpoint['epoch']
+		best_val_loss = checkpoint['best_val_loss']
+		
+		logger.info(f"Resuming training from Epoch {start_epoch+1} with Best Loss: {best_val_loss:.4f}")
+	else:
+		logger.info("No checkpoint found. Starting fresh.")
+
 	logger.info(f"Beginning {EPOCHS} epochs...")
 	
-	for epoch in range(EPOCHS):
+	for epoch in range(start_epoch,EPOCHS+start_epoch):
 		start_time = time.time()
 		
 		# Train
 		model.train()
 		train_loss = 0.0
-		for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
+		for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False, mininterval=1.0):
 			anchor, pos, neg = batch
 			for k in anchor.keys():
 				anchor[k] = anchor[k].to(device, non_blocking=True)
@@ -261,10 +298,26 @@ def main():
 		logger.info(f"Epoch [{epoch+1}/{EPOCHS}] Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s")
 		scheduler.step(avg_val_loss)
 
+		# [REPLACE THE SAVING BLOCK WITH THIS]
 		if avg_val_loss < best_val_loss:
 			best_val_loss = avg_val_loss
-			torch.save(model.state_dict(), save_path)
-			logger.info("--> New Best Model Saved!")
+			
+			# Create a comprehensive checkpoint dictionary
+			checkpoint = {
+				'epoch': epoch + 1,
+				'model_state_dict': model.state_dict(),
+				'optimizer_state_dict': optimizer.state_dict(),
+				'scheduler_state_dict': scheduler.state_dict(),
+				'best_val_loss': best_val_loss
+			}
+			
+			torch.save(checkpoint, save_path)
+			logger.info(f"--> New Best Model Saved! (Loss: {best_val_loss:.4f})")
+		
+		# if avg_val_loss < best_val_loss:
+		# 	best_val_loss = avg_val_loss
+		# 	torch.save(model.state_dict(), save_path)
+		# 	logger.info("--> New Best Model Saved!")
 
 	logger.info("Training Complete.")
 
