@@ -71,18 +71,19 @@ TRAINING_SIGNATURE = {
 
 # --- 3. DATASET CLASS (Same as before) ---
 class SixStreamGaitDataset(Dataset):
-	# ... [Copy the exact same Dataset code from previous answer] ...
-	# (No changes needed here)
-	def __init__(self, subjects_data, window_size=200, stride=50, mode='train'):
-		self.window_size = window_size
+	def __init__(self, subjects_data, cfg: Config, mode="train"):
+		self.cfg = cfg
+		self.window_size = cfg.window_size
+		self.stride = cfg.stride
 		self.mode = mode
-		self.samples = [] 
+		self.samples = []
 		self.data = subjects_data
 		self.subject_ids = list(subjects_data.keys())
-		
+		self.sensors = list(cfg.streams)
+
 		for subj_id in self.subject_ids:
-			n_points = len(subjects_data[subj_id]['Pelvis'])
-			for start in range(0, n_points - window_size, stride):
+			n_points = len(subjects_data[subj_id][self.sensors[0]])
+			for start in range(0, n_points - self.window_size, self.stride):
 				self.samples.append((subj_id, start))
 
 	def __len__(self):
@@ -90,45 +91,35 @@ class SixStreamGaitDataset(Dataset):
 
 	def _get_window(self, subj_id, start_idx):
 		window_dict = {}
-		sensors = ['Pelvis', 'Upper_Spine', 'Shank_LT', 'Foot_LT', 'Shank_RT', 'Foot_RT']
-		for sensor in sensors:
+		for sensor in self.sensors:
 			full_signal = self.data[subj_id][sensor]
 			signal_slice = full_signal[start_idx : start_idx + self.window_size]
-			tensor = signal_slice.clone().detach().float().permute(1, 0)
-			window_dict[sensor] = tensor
+			window_dict[sensor] = signal_slice.clone().detach().float().permute(1, 0)
 		return window_dict
 
 	def __getitem__(self, index):
 		anchor_subj, anchor_start = self.samples[index]
 		anchor_dict = self._get_window(anchor_subj, anchor_start)
-		
-		if self.mode == 'test':
+
+		if self.mode == "test":
 			return anchor_dict, anchor_subj
 
-		subj_len = len(self.data[anchor_subj]['Pelvis'])
-		if subj_len > self.window_size:
-			pos_start = np.random.randint(0, subj_len - self.window_size)
-		else:
-			pos_start = anchor_start
+		subj_len = len(self.data[anchor_subj][self.sensors[0]])
+		pos_start = np.random.randint(0, max(1, subj_len - self.window_size)) if subj_len > self.window_size else anchor_start
 		pos_dict = self._get_window(anchor_subj, pos_start)
-		
+
 		other_subjs = [s for s in self.subject_ids if s != anchor_subj]
-		if not other_subjs:
-			neg_subj = anchor_subj
-		else:
-			neg_subj = np.random.choice(other_subjs)
-			
-		neg_len = len(self.data[neg_subj]['Pelvis'])
-		if neg_len > self.window_size:
-			neg_start = np.random.randint(0, neg_len - self.window_size)
-		else:
-			neg_start = 0
+		neg_subj = np.random.choice(other_subjs) if other_subjs else anchor_subj
+
+		neg_len = len(self.data[neg_subj][self.sensors[0]])
+		neg_start = np.random.randint(0, max(1, neg_len - self.window_size)) if neg_len > self.window_size else 0
 		neg_dict = self._get_window(neg_subj, neg_start)
-		
+
 		return anchor_dict, pos_dict, neg_dict
 
+
 # --- 4. DATA SPLITTER (Same as before) ---
-def create_dataloaders(data_dir):
+def create_dataloaders(data_dir, cfg: Config):
 	logger.info(f"Loading .pt files from: {data_dir}")
 	files = glob.glob(os.path.join(data_dir, "*.pt"))
 	
@@ -137,7 +128,7 @@ def create_dataloaders(data_dir):
 		logger.error(f"No .pt files found in {data_dir}!")
 		raise FileNotFoundError(f"Check your path. Current target: {os.path.abspath(data_dir)}")
 
-	np.random.seed(CFG.seed)
+	np.random.seed(cfg.seed)
 	np.random.shuffle(files)
 	
 	master_data = {}
@@ -173,13 +164,12 @@ def create_dataloaders(data_dir):
 	val_ds   = SixStreamGaitDataset(subset_data(val_ids),   cfg=CFG, mode="train")
 
 	
-	train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=0, pin_memory=True)
-	val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=0)
+	train_loader = DataLoader(train_ds, batch_size=CFG.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+	val_loader   = DataLoader(val_ds,   batch_size=CFG.batch_size, shuffle=False, num_workers=0)
 	
 	return train_loader, val_loader
 
 # --- 5. MODEL ARCHITECTURE (Same as before) ---
-class FeatureExtractor(nn.Module):
 class FeatureExtractor(nn.Module):
 	def __init__(self, input_channels: int, out_channels1=32, out_channels2=64):
 		super().__init__()
@@ -193,55 +183,45 @@ class FeatureExtractor(nn.Module):
 			nn.ReLU(),
 			nn.AdaptiveAvgPool1d(1),
 		)
+
 	def forward(self, x):
 		return self.cnn(x).squeeze(-1)
 
 class SixStreamFusionNet(nn.Module):
-class SixStreamGaitDataset(Dataset):
-	def __init__(self, subjects_data, cfg: Config, mode="train"):
-		super(SixStreamFusionNet, self).__init__()
-		self.cfg = cfg
-		self.window_size = cfg.window_size
-		self.mode = mode
-		self.samples = []
-		self.data = subjects_data
-		self.subject_ids = list(subjects_data.keys())
-		self.sensors = list(cfg.streams)
-		self.branches = nn.ModuleDict({
-			'Pelvis': FeatureExtractor(),
-			'Upper_Spine': FeatureExtractor(),
-			'Shank_LT': FeatureExtractor(),
-			'Foot_LT': FeatureExtractor(),
-			'Shank_RT': FeatureExtractor(),
-			'Foot_RT': FeatureExtractor()
-		})
+	def __init__(self, cfg: Config, feat_dim=64, hidden_dim=128, emb_dim=64):
+		super().__init__()
+		self.streams = list(cfg.streams)
+		self.branches = nn.ModuleDict({s: FeatureExtractor(cfg.input_channels) for s in self.streams})
+		fusion_in = feat_dim * len(self.streams)
 		self.fusion = nn.Sequential(
-			nn.Linear(384, 128),
+			nn.Linear(fusion_in, hidden_dim),
 			nn.ReLU(),
 			nn.Dropout(0.5),
-			nn.Linear(128, 64)
+			nn.Linear(hidden_dim, emb_dim),
 		)
+
 	def forward(self, inputs):
-		feats = [self.branches[key](inputs[key]) for key in inputs.keys()]
-		combined = torch.cat(feats, dim=1)
-		return self.fusion(combined)
+		feats = [self.branches[s](inputs[s]) for s in self.streams]
+		return self.fusion(torch.cat(feats, dim=1))
 
 class SiameseFusion(nn.Module):
-	def __init__(self):
-		super(SiameseFusion, self).__init__()
-		self.backbone = SixStreamFusionNet()
+	def __init__(self, cfg: Config):
+		super().__init__()
+		self.backbone = SixStreamFusionNet(cfg)
+
 	def forward(self, a, p, n):
 		return self.backbone(a), self.backbone(p), self.backbone(n)
 
 class TripletLoss(nn.Module):
-	def __init__(self, margin=0.2):
-		super(TripletLoss, self).__init__()
+	def __init__(self, margin: float):
+		super().__init__()
 		self.margin = margin
+
 	def forward(self, anchor, positive, negative):
 		dist_pos = torch.pow(anchor - positive, 2).sum(dim=1)
 		dist_neg = torch.pow(anchor - negative, 2).sum(dim=1)
-		losses = torch.relu(dist_pos - dist_neg + self.margin)
-		return losses.mean()
+		return torch.relu(dist_pos - dist_neg + self.margin).mean()
+
 	
 def _find_checkpoints(parent_dir: str):
 	p = Path(parent_dir)
@@ -295,11 +275,12 @@ def main(args):
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 	logger.info(f"Starting Training on: {device}")
 	
-	train_loader, val_loader = create_dataloaders(DATA_DIR)
+	train_loader, val_loader = create_dataloaders(DATA_DIR, CFG)
 	
-	model = SiameseFusion().to(device)
-	criterion = TripletLoss(margin=MARGIN)
-	optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-3)
+	model = SiameseFusion(CFG).to(device)
+	criterion = TripletLoss(margin=CFG.margin)
+	optimizer = optim.AdamW(model.parameters(), lr=CFG.lr, weight_decay=1e-3)
+
 	
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=2)#), verbose=True)
 	use_amp = (device.type == "cuda")
@@ -311,7 +292,6 @@ def main(args):
 	save_path = os.path.join(parent_dir, f"best_gait_model-{timestamp}.pth")
 
 	start_epoch = 0
-	best_val_loss = float("inf")
 
 	# Only attempt resume if user explicitly asked
 	if args.resume is not None:
@@ -347,7 +327,7 @@ def main(args):
 		logger.info("Starting fresh (no --resume provided).")
 
 	
-	for epoch in range(start_epoch,EPOCHS+start_epoch):
+	for epoch in range(start_epoch, CFG.epochs + start_epoch):
 		start_time = time.time()
 		
 		# Train
@@ -391,7 +371,7 @@ def main(args):
 		avg_val_loss = val_loss / len(val_loader)
 		epoch_time = time.time() - start_time		
 		
-		logger.info(f"Epoch [{epoch+1}/{EPOCHS}] Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s")
+		logger.info(f"Epoch [{epoch+1}/{CFG.epochs}] Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s | {optimizer.param_groups[0]["lr"]} |  {optimizer.param_groups[0].get("weight_decay", 0.0)}")
 		scheduler.step(avg_val_loss)
 
 		# [REPLACE THE SAVING BLOCK WITH THIS]
