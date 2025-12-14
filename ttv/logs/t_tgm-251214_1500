@@ -47,3 +47,14 @@ Epoch 25:   6%|██▎                                        | 840/15229 [00:
 
 ## Testing:
 
+AUC: 0.9287
+EER: 0.1513 at threshold 0.9917
+FAR@FRR=1%: 0.4165 at threshold 0.9788
+FAR@FRR=10%: 0.1938 at threshold 0.9897
+
+FAR: 0.1512
+FRR: 0.1514
+TAR: 0.8486
+
+Threshold (FRR≈1%): 0.9788
+FAR@FRR=1% (from CM): 0.4165
