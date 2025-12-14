@@ -44,3 +44,6 @@ INFO:Trainer:Epoch [22/30] Train: 0.0389 | Val: 0.0796 | 294.5s | 0.000125 |  0.
 INFO:Trainer:Epoch [23/30] Train: 0.0391 | Val: 0.0658 | 291.7s | 0.000125 |  0.001           
 INFO:Trainer:Epoch [24/30] Train: 0.0390 | Val: 0.0685 | 307.7s | 0.000125 |  0.001           
 Epoch 25:   6%|██▎                                        | 840/15229 [00:16<04:39, 51.49it/s]Traceback (most recent call last)
+
+## Testing:
+

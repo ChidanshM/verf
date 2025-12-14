@@ -75,7 +75,6 @@ class SixStreamGaitDataset(Dataset):
 		self.cfg = cfg
 		self.window_size = cfg.window_size
 		self.stride = override_stride if override_stride is not None else cfg.stride
-		self.stride = cfg.stride
 		self.mode = mode
 		self.samples = []
 		self.data = subjects_data
