@@ -71,9 +71,10 @@ TRAINING_SIGNATURE = {
 
 # --- 3. DATASET CLASS (Same as before) ---
 class SixStreamGaitDataset(Dataset):
-	def __init__(self, subjects_data, cfg: Config, mode="train"):
+	def __init__(self, subjects_data, cfg: Config, mode="train", override_stride=None):
 		self.cfg = cfg
 		self.window_size = cfg.window_size
+		self.stride = override_stride if override_stride is not None else cfg.stride
 		self.stride = cfg.stride
 		self.mode = mode
 		self.samples = []
@@ -148,7 +149,7 @@ def create_dataloaders(data_dir, cfg: Config):
 	test_ids = subject_ids[n_train + n_val:]
 
 	# 2. Save them to a file so evaluation.ipynb uses the EXACT same people
-	test_ids_path = os.path.join(parent_dir, "test_subjects.txt")
+	test_ids_path = os.path.join(parent_dir, f"test_subjects-{timestamp}.txt")
 	with open(test_ids_path, "w") as f:
 		for sid in test_ids:
 			f.write(sid + "\n")
@@ -160,12 +161,12 @@ def create_dataloaders(data_dir, cfg: Config):
 
 	logger.info(f"Split: Train={len(train_ids)}, Val={len(val_ids)}")
 	
-	train_ds = SixStreamGaitDataset(subset_data(train_ids), cfg=CFG, mode="train")
-	val_ds   = SixStreamGaitDataset(subset_data(val_ids),   cfg=CFG, mode="train")
+	train_ds = SixStreamGaitDataset(subset_data(train_ids), cfg=cfg, mode="train")
+	val_ds   = SixStreamGaitDataset(subset_data(val_ids),   cfg=cfg, mode="train",override_stride=cfg.window_size)
 
 	
-	train_loader = DataLoader(train_ds, batch_size=CFG.batch_size, shuffle=True, num_workers=0, pin_memory=True)
-	val_loader   = DataLoader(val_ds,   batch_size=CFG.batch_size, shuffle=False, num_workers=0)
+	train_loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+	val_loader   = DataLoader(val_ds,   batch_size=cfg.batch_size, shuffle=False, num_workers=0)
 	
 	return train_loader, val_loader
 
