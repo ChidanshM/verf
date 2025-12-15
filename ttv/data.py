@@ -89,7 +89,7 @@ class SixStreamGaitDataset(Dataset):
 				sensor_data = sensor_data + noise
 				
 				# 2. Add Time Warp (50% chance per sensor)
-				if torch.rand(1).item() < 0.5:
+				if torch.rand(1).item() < 0.8:
 					sensor_data = self._time_warp(sensor_data)
 
 			window_dict[sensor] = sensor_data
@@ -258,7 +258,7 @@ def create_dataloaders(
 
 	train_ds = SixStreamGaitDataset(subset_data(train_ids), cfg=cfg, mode="train")
 	# For val, your intent seems to be non-overlapping windows => stride = window_size
-	val_ds = SixStreamGaitDataset(subset_data(val_ids), cfg=cfg, mode="train", override_stride=cfg.window_size)
+	val_ds = SixStreamGaitDataset(subset_data(val_ids), cfg=cfg, mode="val", override_stride=cfg.window_size)
 
 	train_loader = DataLoader(
 		train_ds,

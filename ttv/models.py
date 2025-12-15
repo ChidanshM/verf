@@ -16,7 +16,7 @@ class ModelDims:
 	feat_dim: int
 	hidden_dim: int
 	emb_dim: int
-	dropout: float = 0.65
+	dropout: float = 0.5
 
 
 class FeatureExtractor(nn.Module):
@@ -26,13 +26,17 @@ class FeatureExtractor(nn.Module):
 	Output: (B, feat_dim)
 	"""
 
-	def __init__(self, input_channels: int, feat_dim: int, mid_channels: int = 32):
+	def __init__(self, input_channels: int, feat_dim: int, mid_channels: int = 16):
 		super().__init__()
 		self.net = nn.Sequential(
+			# Layer 1: 16 Filters
 			nn.Conv1d(input_channels, mid_channels, kernel_size=3, padding=1),
 			nn.BatchNorm1d(mid_channels),
 			nn.ReLU(),
 			nn.MaxPool1d(2),
+
+			# Layer 2: 32 Filters (2 * mid_channels)
+
 			nn.Conv1d(mid_channels, feat_dim, kernel_size=3, padding=1),
 			nn.BatchNorm1d(feat_dim),
 			nn.ReLU(),
