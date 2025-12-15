@@ -16,7 +16,7 @@ class ModelDims:
 	feat_dim: int
 	hidden_dim: int
 	emb_dim: int
-	dropout: float = 0.5
+	dropout: float = 0.65
 
 
 class FeatureExtractor(nn.Module):
@@ -102,7 +102,14 @@ class SiameseFusion(nn.Module):
 		p: Dict[str, torch.Tensor],
 		n: Dict[str, torch.Tensor],
 	):
-		return self.backbone(a), self.backbone(p), self.backbone(n)
+		ea, ep, en = self.backbone(a), self.backbone(p), self.backbone(n)
+		# This restricts vectors to length 1.0, stabilizing training
+		ea = torch.nn.functional.normalize(ea, p=2, dim=1)
+		ep = torch.nn.functional.normalize(ep, p=2, dim=1)
+		en = torch.nn.functional.normalize(en, p=2, dim=1)
+        
+		# ----------------------------------
+		return ea, ep, en
 
 
 class TripletLoss(nn.Module):

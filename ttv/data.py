@@ -7,6 +7,7 @@ from typing import Dict, Tuple, Optional
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
@@ -30,7 +31,7 @@ class SixStreamGaitDataset(Dataset):
 		self.cfg = cfg
 		self.mode = mode
 		self.window_size = cfg.window_size
-		self.stride = override_stride if override_stride is not None else cfg.stride  # ✅ keep override
+		self.stride = override_stride if override_stride is not None else cfg.stride  #  keep override
 		self.sensors = list(cfg.streams)
 
 		self.data = subjects_data
@@ -45,15 +46,87 @@ class SixStreamGaitDataset(Dataset):
 
 	def __len__(self) -> int:
 		return len(self.samples)
+	
+	def _time_warp(self, tensor_2d: torch.Tensor) -> torch.Tensor:
+		"""
+		Randomly stretches or compresses the signal along the time axis.
+		Input: [Channels, Time] -> Output: [Channels, WindowSize]
+		"""
+		# 1. Create a random scale factor (e.g., 0.8x to 1.2x speed)
+		scale = 0.8 + (torch.rand(1).item() * 0.4)
+		
+		# 2. Resize needs [Batch, Channels, Time], so we fake a batch dim
+		x = tensor_2d.unsqueeze(0) 
+		new_len = int(self.window_size * scale)
+		
+		# 3. Interpolate (Stretch/Squash)
+		x_warped = F.interpolate(x, size=new_len, mode='linear', align_corners=False)
+		x_warped = x_warped.squeeze(0) # Remove fake batch dim
 
+		# 4. Crop or Pad back to original window_size
+		if new_len > self.window_size:
+			# If we stretched it (made it longer), crop the center
+			start = (new_len - self.window_size) // 2
+			return x_warped[:, start : start + self.window_size]
+		else:
+			# If we squashed it (made it shorter), pad with zeros at the end
+			padding = self.window_size - new_len
+			return F.pad(x_warped, (0, padding))
+		
 	def _get_window(self, subj_id: str, start_idx: int) -> Dict[str, torch.Tensor]:
 		window_dict: Dict[str, torch.Tensor] = {}
 		for sensor in self.sensors:
 			full_signal = self.data[subj_id][sensor]
 			signal_slice = full_signal[start_idx : start_idx + self.window_size]
-			# expected: [T, C] -> [C, T]
-			window_dict[sensor] = signal_slice.clone().detach().float().permute(1, 0)
+
+			# expected: [T, C] -> [C, T] needed for time warping
+			# Note: We move the permute UP so we can warp dimensions easier
+			sensor_data = signal_slice.clone().detach().float().permute(1, 0)
+
+			if self.mode == "train":
+				# 1. Add Noise (Your existing code, adapted for [C, T] shape)
+				noise = torch.randn_like(sensor_data) * 0.02
+				sensor_data = sensor_data + noise
+				
+				# 2. Add Time Warp (50% chance per sensor)
+				if torch.rand(1).item() < 0.5:
+					sensor_data = self._time_warp(sensor_data)
+
+			window_dict[sensor] = sensor_data
+			
 		return window_dict
+
+
+	# def _get_window(self, subj_id: str, start_idx: int) -> Dict[str, torch.Tensor]:
+	# 	window_dict: Dict[str, torch.Tensor] = {}
+	# 	for sensor in self.sensors:
+	# 		full_signal = self.data[subj_id][sensor]
+	# 		signal_slice = full_signal[start_idx : start_idx + self.window_size]
+			
+	# 		# --- NEW CODE START ---
+	# 		# Only add noise during training mode
+	# 		if self.mode == "train":
+	# 			# Add Gaussian noise (scaled by 0.01 to 0.05 usually works well)
+	# 			noise = torch.randn_like(signal_slice) * 0.02
+	# 			signal_slice = signal_slice + noise
+				
+	# 			# Optional: Random Scaling (Simulate sensor intensity drift)
+	# 			# scale = 0.9 + (torch.rand(1).item() * 0.2) # Random between 0.9 and 1.1
+	# 			# signal_slice = signal_slice * scale
+	# 		# --- NEW CODE END ---
+
+	# 		# expected: [T, C] -> [C, T]
+	# 		window_dict[sensor] = signal_slice.clone().detach().float().permute(1, 0)
+	# 	return window_dict
+
+	# def _get_window(self, subj_id: str, start_idx: int) -> Dict[str, torch.Tensor]:
+	# 	window_dict: Dict[str, torch.Tensor] = {}
+	# 	for sensor in self.sensors:
+	# 		full_signal = self.data[subj_id][sensor]
+	# 		signal_slice = full_signal[start_idx : start_idx + self.window_size]
+	# 		# expected: [T, C] -> [C, T]
+	# 		window_dict[sensor] = signal_slice.clone().detach().float().permute(1, 0)
+	# 	return window_dict
 
 	def __getitem__(self, index: int):
 		anchor_subj, anchor_start = self.samples[index]
@@ -62,14 +135,14 @@ class SixStreamGaitDataset(Dataset):
 		if self.mode == "test":
 			return anchor_dict, anchor_subj
 
-		# Positive: same subject, different window
+		# ... (Positive/Negative mining logic) ...
+			# Positive: same subject, different window
 		subj_len = len(self.data[anchor_subj][self.sensors[0]])
 		pos_start = (
 			np.random.randint(0, max(1, subj_len - self.window_size))
 			if subj_len > self.window_size
 			else anchor_start
 		)
-		pos_dict = self._get_window(anchor_subj, pos_start)
 
 		# Negative: different subject (if possible)
 		other_subjs = [s for s in self.subject_ids if s != anchor_subj]
@@ -81,9 +154,57 @@ class SixStreamGaitDataset(Dataset):
 			if neg_len > self.window_size
 			else 0
 		)
+
+		pos_dict = self._get_window(anchor_subj, pos_start)
 		neg_dict = self._get_window(neg_subj, neg_start)
 
+		#  NEW: Randomly swap Left/Right sensors (Mirroring)
+		if self.mode == "train" and torch.rand(1).item() < 0.5:
+			# Helper function to swap dictionary keys
+			def swap_sensors(d):
+				# We use temporary variables to swap values safely
+				d['Shank_LT'], d['Shank_RT'] = d['Shank_RT'], d['Shank_LT']
+				d['Foot_LT'],  d['Foot_RT']  = d['Foot_RT'],  d['Foot_LT']
+				return d
+
+			# Apply to Anchor and Positive (must match each other!)
+			anchor_dict = swap_sensors(anchor_dict)
+			pos_dict    = swap_sensors(pos_dict)
+			
+			# Optional: We usually DON'T swap Negative to keep it a "hard" example,
+			# but swapping it is also valid.
+		
 		return anchor_dict, pos_dict, neg_dict
+
+	# def __getitem__(self, index: int):
+	# 	anchor_subj, anchor_start = self.samples[index]
+	# 	anchor_dict = self._get_window(anchor_subj, anchor_start)
+
+	# 	if self.mode == "test":
+	# 		return anchor_dict, anchor_subj
+
+	# 	# Positive: same subject, different window
+	# 	subj_len = len(self.data[anchor_subj][self.sensors[0]])
+	# 	pos_start = (
+	# 		np.random.randint(0, max(1, subj_len - self.window_size))
+	# 		if subj_len > self.window_size
+	# 		else anchor_start
+	# 	)
+	# 	pos_dict = self._get_window(anchor_subj, pos_start)
+
+	# 	# Negative: different subject (if possible)
+	# 	other_subjs = [s for s in self.subject_ids if s != anchor_subj]
+	# 	neg_subj = np.random.choice(other_subjs) if other_subjs else anchor_subj
+
+	# 	neg_len = len(self.data[neg_subj][self.sensors[0]])
+	# 	neg_start = (
+	# 		np.random.randint(0, max(1, neg_len - self.window_size))
+	# 		if neg_len > self.window_size
+	# 		else 0
+	# 	)
+	# 	neg_dict = self._get_window(neg_subj, neg_start)
+
+	# 	return anchor_dict, pos_dict, neg_dict
 
 
 def create_dataloaders(

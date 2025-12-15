@@ -18,10 +18,10 @@ class Config:
 	batch_size: int = 64
 	epochs: int = 30
 	lr: float = 1e-4
-	weight_decay: float = 1e-3  # aligns with AdamW default used in your script
+	weight_decay: float = 1e-2  # aligns with AdamW default used in your script
 
 	# Loss
-	margin: float = 0.2
+	margin: float = 0.1
 
 	# Data / windowing
 	input_channels: int = 6
