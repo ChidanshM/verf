@@ -30,12 +30,35 @@ def get_logger(name: str = "Trainer") -> logging.Logger:
 	return logger
 
 
+class EarlyStopper:
+	"""
+	Tracks validation loss and stops training if it doesn't improve.
+	Does NOT save checkpoints (the main loop handles that).
+	"""
+	def __init__(self, patience: int = 6, min_delta: float = 0.001):
+		self.patience = patience
+		self.min_delta = min_delta
+		self.counter = 0
+		self.best_loss = float("inf")
+		self.early_stop = False
+
+	def check(self, val_loss: float) -> bool:
+		if val_loss < (self.best_loss - self.min_delta):
+			self.best_loss = val_loss
+			self.counter = 0  # Reset if we improved
+		else:
+			self.counter += 1
+			if self.counter >= self.patience:
+				self.early_stop = True
+		return self.early_stop
+
+
 def main(args):
 	logger = get_logger("Trainer")
 
-	# Timestamp at start of run (used for THIS run's save_path and test_subjects file)
+	# Timestamp at start of run
 	timestamp = datetime.now().strftime("%y%m%d_%H%M")
-	print(timestamp)
+	print(f"Run Timestamp: {timestamp}")
 
 	# Paths
 	base_dir = Path(__file__).resolve().parent        # .../verf/ttv
@@ -71,17 +94,20 @@ def main(args):
 		patience=CFG.sched_patience,
 	)
 
-	# Signatures (for strict resume checks)
+	# Early Stopper (Patience = 6 epochs of no improvement)
+	early_stopper = EarlyStopper(patience=6, min_delta=0.0005)
+
+	# Signatures
 	model_signature = build_model_signature(CFG)
 	training_signature = build_training_signature(
 		optimizer_type=optimizer.__class__.__name__,
 		scheduler_type=scheduler.__class__.__name__,
 	)
 
-	# This run saves to a NEW timestamped file (always)
-	save_path = base_dir/ f"best_gait_model-{timestamp}.pth"
+	# Save path
+	save_path = base_dir / f"best_gait_model-{timestamp}.pth"
 
-	# Resume ONLY if user explicitly asked via CLI
+	# Resume Logic
 	res = load_checkpoint_if_requested(
 		resume_arg=args.resume,
 		parent_dir=str(parent_dir),
@@ -96,6 +122,9 @@ def main(args):
 	start_epoch = res.start_epoch
 	best_val_loss = res.best_val_loss
 
+	# Sync early stopper with resumed best loss so it doesn't stop immediately
+	early_stopper.best_loss = best_val_loss
+
 	if res.resumed:
 		logger.info(f"Resumed from: {res.resume_path}")
 		logger.info(f"Start epoch: {start_epoch + 1}, Best val loss: {best_val_loss:.4f}")
@@ -107,13 +136,13 @@ def main(args):
 
 	# Training loop
 	for epoch in range(start_epoch, CFG.epochs):
-		start_time = time.time()
+		loop_start = time.time()
 
 		# ---- Train ----
 		model.train()
 		train_loss = 0.0
 
-		for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False, mininterval=1.0):
+		for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}", leave=False):
 			anchor, pos, neg = batch
 
 			for k in anchor.keys():
@@ -154,16 +183,17 @@ def main(args):
 				val_loss += loss.item()
 
 		avg_val_loss = val_loss / max(1, len(val_loader))
-		epoch_time = time.time() - start_time
+		epoch_time = time.time() - loop_start
 
 		logger.info(
 			f"Epoch [{epoch+1}/{CFG.epochs}] "
 			f"Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s"
 		)
 
+		# Scheduler Step
 		scheduler.step(avg_val_loss)
 
-		# ---- Save best (with signatures for strict resume) ----
+		# ---- 1. Save Best Model ----
 		if avg_val_loss < best_val_loss:
 			best_val_loss = avg_val_loss
 			ckpt = {
@@ -177,17 +207,23 @@ def main(args):
 			}
 			torch.save(ckpt, str(save_path))
 			logger.info(f"--> New Best Model Saved! (Loss: {best_val_loss:.4f})")
+		
+		# ---- 2. Check "Empty Tank" Overfitting (Your Request) ----
+		# If train is super low but val is not improving, stop early.
+		if avg_train_loss < 0.01 and avg_val_loss > (best_val_loss + 0.05):
+			logger.warning(f"Stopping: Train loss {avg_train_loss:.4f} is < 0.01 but Val is lagging.")
+			break
+
+		# ---- 3. Standard Early Stopping ----
+		if early_stopper.check(avg_val_loss):
+			logger.info(f"Early stopping triggered. No validation improvement for {early_stopper.patience} epochs.")
+			break
 
 	logger.info("Training Complete.")
 
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
-
-	# Per your rule: no scanning/prompting unless this flag is present.
-	# --resume           => prompts (because const="prompt")
-	# --resume latest    => loads newest
-	# --resume <path>    => loads that file
 	parser.add_argument(
 		"--resume",
 		nargs="?",
@@ -195,6 +231,5 @@ if __name__ == "__main__":
 		default=None,
 		help='Resume training. Use "--resume" to prompt, "--resume latest", or "--resume <path/to/.pth>".',
 	)
-
 	args = parser.parse_args()
 	main(args)
