@@ -85,7 +85,7 @@ class SixStreamGaitDataset(Dataset):
 
 			if self.mode == "train":
 				# 1. Add Noise (Your existing code, adapted for [C, T] shape)
-				noise = torch.randn_like(sensor_data) * 0.02
+				noise = torch.randn_like(sensor_data) * 0.05
 				sensor_data = sensor_data + noise
 				
 				# 2. Add Time Warp (50% chance per sensor)
@@ -264,14 +264,14 @@ def create_dataloaders(
 		train_ds,
 		batch_size=cfg.batch_size,
 		shuffle=True,
-		num_workers=8,
+		num_workers=4,
 		pin_memory=True,
 	)
 	val_loader = DataLoader(
 		val_ds,
 		batch_size=cfg.batch_size,
 		shuffle=False,
-		num_workers=0,
+		num_workers=4,
 	)
 
 	return train_loader, val_loader

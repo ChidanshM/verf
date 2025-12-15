@@ -21,7 +21,7 @@ class Config:
 	weight_decay: float = 1e-2  # aligns with AdamW default used in your script
 
 	# Loss
-	margin: float = 0.1
+	margin: float = 0.3
 
 	# Data / windowing
 	input_channels: int = 6
@@ -39,14 +39,14 @@ class Config:
 	)
 
 	# Model dims
-	feat_dim: int = 64      # per-stream feature dim produced by FeatureExtractor
-	hidden_dim: int = 128   # fusion MLP hidden dim
-	emb_dim: int = 64       # final embedding dim
+	feat_dim: int = 32#64      # per-stream feature dim produced by FeatureExtractor
+	hidden_dim: int = 64#128   # fusion MLP hidden dim
+	emb_dim: int = 32#64       # final embedding dim
 
 	# Scheduler defaults (ReduceLROnPlateau)
 	sched_mode: str = "min"
 	sched_factor: float = 0.5
-	sched_patience: int = 2
+	sched_patience: int = 2 #5 just in case later
 
 
 # Default config used across modules
