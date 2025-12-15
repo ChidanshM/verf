@@ -184,10 +184,12 @@ def main(args):
 
 		avg_val_loss = val_loss / max(1, len(val_loader))
 		epoch_time = time.time() - loop_start
+		current_lr = optimizer.param_groups[0]["lr"]
+		current_wd = optimizer.param_groups[0]["weight_decay"]
 
 		logger.info(
 			f"Epoch [{epoch+1}/{CFG.epochs}] "
-			f"Train: {avg_train_loss:.4f} | Val: {avg_val_loss:.4f} | {epoch_time:.1f}s"
+			f"Train: {avg_train_loss:.4f} | Val: val_loss {avg_val_loss:.4f} | {epoch_time:.1f}s | current_lr: {current_lr} | current_wd: {current_wd}"
 		)
 
 		# Scheduler Step
