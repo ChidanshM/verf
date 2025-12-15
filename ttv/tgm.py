@@ -79,7 +79,7 @@ def main(args):
 	)
 
 	# This run saves to a NEW timestamped file (always)
-	save_path = parent_dir / f"best_gait_model-{timestamp}.pth"
+	save_path = base_dir/ "new" / f"best_gait_model-{timestamp}.pth"
 
 	# Resume ONLY if user explicitly asked via CLI
 	res = load_checkpoint_if_requested(
