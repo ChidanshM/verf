@@ -18,15 +18,15 @@ class Config:
 	batch_size: int = 64
 	epochs: int = 30
 	lr: float = 5e-4
-	weight_decay: float = 1e-3  # aligns with AdamW default used in your script
+	weight_decay: float = 0.05  # aligns with AdamW default used in your script
 
 	# Loss
-	margin: float = 0.4
+	margin: float = 0.5
 
 	# Data / windowing
 	input_channels: int = 6
 	window_size: int = 200
-	stride: int = 50
+	stride: int = 100
 
 	# Sensor streams (order matters for deterministic concatenation)
 	streams: Tuple[str, ...] = (
@@ -39,9 +39,9 @@ class Config:
 	)
 
 	# Model dims
-	feat_dim: int = 32#64      # per-stream feature dim produced by FeatureExtractor
-	hidden_dim: int = 64#128   # fusion MLP hidden dim
-	emb_dim: int = 32#64       # final embedding dim
+	feat_dim: int = 16#64      # per-stream feature dim produced by FeatureExtractor
+	hidden_dim: int = 32#128   # fusion MLP hidden dim
+	emb_dim: int = 16#64       # final embedding dim
 
 	# Scheduler defaults (ReduceLROnPlateau)
 	sched_mode: str = "min"
