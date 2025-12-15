@@ -264,7 +264,7 @@ def create_dataloaders(
 		train_ds,
 		batch_size=cfg.batch_size,
 		shuffle=True,
-		num_workers=0,
+		num_workers=8,
 		pin_memory=True,
 	)
 	val_loader = DataLoader(
