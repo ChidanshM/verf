@@ -11,17 +11,20 @@ class Config:
     batch_size: int = 64
     epochs: int = 100
     lr: float = 0.0005
-    weight_decay: float = 1e-4
+    # STRATEGY 1: Increase Weight Decay (Was 1e-4 -> Now 1e-3)
+    # This prevents weights from growing too large, reducing overfitting.
+    weight_decay: float = 1e-3  
 
     # Loss
-    margin: float = 0.2
+    # STRATEGY 2: Increase Margin (Was 0.2 -> Now 0.5)
+    # This forces the model to push negatives much further away.
+    margin: float = 0.5
 
     # Data / windowing
-    input_channels: int = 6  # <--- UPDATED: Was 9, now 6 (Acc+Gyr)
-    window_size: int = 1000  # <--- RESTORED: 5 seconds (200Hz)
-    stride: int = 500        # 50% overlap
+    input_channels: int = 6 
+    window_size: int = 1000
+    stride: int = 500
 
-    # Sensor streams
     streams: Tuple[str, ...] = (
         "Pelvis", "Upper_Spine", "Shank_LT", "Foot_LT", "Shank_RT", "Foot_RT",
     )
