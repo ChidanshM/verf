@@ -5,7 +5,6 @@ from typing import Any, Dict, Tuple
 
 @dataclass(frozen=True)
 class Config:
-    # Repro
     seed: int = 42
 
     # Training
@@ -17,10 +16,10 @@ class Config:
     # Loss
     margin: float = 0.2
 
-    # Data / windowing (UPDATED FOR 200Hz)
-    input_channels: int = 9  # 9 axes (Acc+Gyr+Mag)
-    window_size: int = 1000  # 5 seconds @ 200Hz (Was 500)
-    stride: int = 500        # 50% overlap (Was 250)
+    # Data / windowing
+    input_channels: int = 6  # <--- UPDATED: Was 9, now 6 (Acc+Gyr)
+    window_size: int = 1000  # <--- RESTORED: 5 seconds (200Hz)
+    stride: int = 500        # 50% overlap
 
     # Sensor streams
     streams: Tuple[str, ...] = (

@@ -27,7 +27,6 @@ class WindowDataset(Dataset):
         try:
             data = torch.load(file_path, map_location='cpu')
         except Exception:
-            # Return dummy if corrupt
             return self._get_dummy(), label
 
         # Z-Score Norm
@@ -92,33 +91,28 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
     count = 0
     skipped_short = 0
     
-    # DEBUG: Print info about the first file
-    try:
-        debug_data = torch.load(all_files[0], map_location='cpu')
-        debug_sensor = next(iter(debug_data.values()))
-        print(f"\n[DEBUG] Checking first file: {all_files[0].name}")
-        print(f"[DEBUG] Tensor Shape: {debug_sensor.shape}")
-        print(f"[DEBUG] Required Window: {cfg.window_size}")
-        if debug_sensor.shape[-1] < cfg.window_size:
-            print(f"[CRITICAL WARNING] File is SHORTER than window size! ({debug_sensor.shape[-1]} < {cfg.window_size})")
-    except Exception as e:
-        print(f"[DEBUG] Failed to load first file: {e}")
-
-    for f in tqdm(all_files, desc="Caching Windows"):
+    for f in tqdm(all_files, desc=f"Caching Windows"):
         stem = f.name.split('_')[0].split('.')[0]
         try:
             full_data = torch.load(f, map_location='cpu')
-        except Exception as e:
-            print(f"Failed to load {f.name}: {e}")
-            continue
+        except: continue
+        
+        # --- CRITICAL FIX: Transpose (Time, Channels) -> (Channels, Time) ---
+        for k, v in full_data.items():
+            # If shape is [80000, 6], flip to [6, 80000]
+            if v.shape[0] > v.shape[1]:
+                full_data[k] = v.t()
         
         first_val = next(iter(full_data.values()))
-        seq_len = first_val.shape[-1]
+        seq_len = first_val.shape[-1] # Now this will be 864018, which is > 1000
         
         if seq_len < cfg.window_size:
             skipped_short += 1
             continue
 
+        # We can limit number of windows per file to prevent creating MILLIONS of files
+        # 72 mins * 200hz = 864k samples. With stride 500 -> 1700 windows per person.
+        # This is fine.
         for i, start in enumerate(range(0, seq_len - cfg.window_size + 1, stride)):
             window = {}
             for k, v in full_data.items():
@@ -131,23 +125,22 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
     if count == 0:
         raise RuntimeError(
             f"Cache generation FAILED! 0 windows created.\n"
-            f"Skipped {skipped_short} files because they were shorter than {cfg.window_size} steps.\n"
-            f"Please check if your data is actually 200Hz or if config.window_size is too large."
+            f"Skipped {skipped_short} files.\n"
+            f"Please ensure Config input_channels matches your data."
         )
 
-    if logger: logger.info(f"Cache generation complete. Created {count} windows.")
+    if logger: logger.info(f"Cache complete. Created {count} windows.")
 
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
     source_dir = Path(data_dir)
-    # Different cache name for 1000-step windows
-    cache_dir = source_dir.parent / "cache_windows_transformer_1000" 
+    # Dynamic cache name
+    cache_name = f"cache_win{cfg.window_size}_stride{cfg.stride}"
+    cache_dir = source_dir.parent / cache_name 
     
-    # FORCE CLEANUP: If it exists, delete it to ensure we regenerate with new settings
-    if cache_dir.exists():
-        if logger: logger.info("Deleting old cache to ensure fresh generation...")
-        shutil.rmtree(cache_dir)
-        
-    generate_cache(source_dir, cache_dir, cfg, logger)
+    if not cache_dir.exists() or not any(cache_dir.iterdir()):
+        generate_cache(source_dir, cache_dir, cfg, logger)
+    else:
+        if logger: logger.info(f"Using existing cache: {cache_dir}")
 
     all_files = sorted(list(cache_dir.glob("*.pt")))
     labels = []
