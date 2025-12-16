@@ -1,9 +1,9 @@
-# verf/ttv/data.py
 import torch
 import numpy as np
 import random
 import re
 import shutil
+import os
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader, Sampler 
@@ -24,21 +24,19 @@ class WindowDataset(Dataset):
     def __getitem__(self, idx):
         file_path = self.file_paths[idx]
         label = self.labels[idx]
-        
         try:
             data = torch.load(file_path, map_location='cpu')
         except Exception:
+            # Return dummy if corrupt
             return self._get_dummy(), label
 
-        # --- Z-Score Normalization (Per Window) ---
-        # "Normalize inputs before feeding them in"
+        # Z-Score Norm
         for s in data.keys():
-            tensor = data[s] # Shape (C, T)
-            mean = tensor.mean(dim=1, keepdim=True)
-            std = tensor.std(dim=1, keepdim=True) + 1e-6
-            data[s] = (tensor - mean) / std
+            t = data[s]
+            m = t.mean(dim=1, keepdim=True)
+            std = t.std(dim=1, keepdim=True) + 1e-6
+            data[s] = (t - m) / std
 
-        # Augmentation (Mirroring)
         if self.mode == "train" and random.random() > 0.5:
             for sensor in data.keys():
                 data[sensor] = -data[sensor]
@@ -51,28 +49,19 @@ class WindowDataset(Dataset):
             d[s] = torch.zeros((self.cfg.input_channels, self.cfg.window_size))
         return d
 
-# ... (Keep BalancedBatchSampler and generate_cache logic same as previous turn) ...
-# Just make sure generate_cache uses cfg.window_size (500 now)
-
-# Ensure create_dataloaders uses the correct batch_size
 class BalancedBatchSampler(Sampler):
     def __init__(self, labels, batch_size, samples_per_class=8):
         self.labels = labels
         self.batch_size = batch_size
         self.samples_per_class = samples_per_class
-        # Ensure we don't crash if batch_size is small
         if self.batch_size < self.samples_per_class:
             self.samples_per_class = self.batch_size
-        
         self.classes_per_batch = self.batch_size // self.samples_per_class
-        
         self.label_to_indices = defaultdict(list)
         for idx, label in enumerate(labels):
             self.label_to_indices[label].append(idx)
-            
         self.unique_labels = list(self.label_to_indices.keys())
         
-        # Visit every user ~5 times per epoch
         if not self.unique_labels:
             self.n_batches = 0
         else:
@@ -96,18 +85,40 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
     cache_dir.mkdir(parents=True, exist_ok=True)
     all_files = sorted(list(data_dir.glob("*.pt")))
     
+    if not all_files:
+        raise RuntimeError(f"No .pt files found in {data_dir}")
+
     stride = cfg.window_size // 2
     count = 0
+    skipped_short = 0
     
+    # DEBUG: Print info about the first file
+    try:
+        debug_data = torch.load(all_files[0], map_location='cpu')
+        debug_sensor = next(iter(debug_data.values()))
+        print(f"\n[DEBUG] Checking first file: {all_files[0].name}")
+        print(f"[DEBUG] Tensor Shape: {debug_sensor.shape}")
+        print(f"[DEBUG] Required Window: {cfg.window_size}")
+        if debug_sensor.shape[-1] < cfg.window_size:
+            print(f"[CRITICAL WARNING] File is SHORTER than window size! ({debug_sensor.shape[-1]} < {cfg.window_size})")
+    except Exception as e:
+        print(f"[DEBUG] Failed to load first file: {e}")
+
     for f in tqdm(all_files, desc="Caching Windows"):
         stem = f.name.split('_')[0].split('.')[0]
         try:
             full_data = torch.load(f, map_location='cpu')
-        except: continue
+        except Exception as e:
+            print(f"Failed to load {f.name}: {e}")
+            continue
         
         first_val = next(iter(full_data.values()))
         seq_len = first_val.shape[-1]
         
+        if seq_len < cfg.window_size:
+            skipped_short += 1
+            continue
+
         for i, start in enumerate(range(0, seq_len - cfg.window_size + 1, stride)):
             window = {}
             for k, v in full_data.items():
@@ -117,14 +128,26 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
             count += 1
         del full_data
 
+    if count == 0:
+        raise RuntimeError(
+            f"Cache generation FAILED! 0 windows created.\n"
+            f"Skipped {skipped_short} files because they were shorter than {cfg.window_size} steps.\n"
+            f"Please check if your data is actually 200Hz or if config.window_size is too large."
+        )
+
+    if logger: logger.info(f"Cache generation complete. Created {count} windows.")
+
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
     source_dir = Path(data_dir)
-    cache_dir = source_dir.parent / "cache_windows_transformer" # New cache for new window size
+    # Different cache name for 1000-step windows
+    cache_dir = source_dir.parent / "cache_windows_transformer_1000" 
     
-    if not cache_dir.exists() or not any(cache_dir.iterdir()):
-        generate_cache(source_dir, cache_dir, cfg, logger)
-    else:
-        if logger: logger.info(f"Using cache: {cache_dir}")
+    # FORCE CLEANUP: If it exists, delete it to ensure we regenerate with new settings
+    if cache_dir.exists():
+        if logger: logger.info("Deleting old cache to ensure fresh generation...")
+        shutil.rmtree(cache_dir)
+        
+    generate_cache(source_dir, cache_dir, cfg, logger)
 
     all_files = sorted(list(cache_dir.glob("*.pt")))
     labels = []
@@ -137,7 +160,6 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
             labels.append(int(numeric_part))
             valid_files.append(f)
 
-    # Split 70/15/15
     unique_ids = sorted(list(set(labels)))
     n_ids = len(unique_ids)
     idx_train = int(n_ids * 0.70)
