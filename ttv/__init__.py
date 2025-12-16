@@ -5,25 +5,21 @@ Exposes the core model, data, and configuration classes for easy import.
 
 from .config import CFG, Config
 from .models import (
-    ModelDims,
-    FeatureExtractor,
-    SixStreamFusionNet,
+    HybridGaitTransformer,
     BatchHardTripletLoss,
 )
 from .data import (
     create_dataloaders,
-    GaitDataset,
+    WindowDataset,
     BalancedBatchSampler,
 )
 
 __all__ = [
     "CFG",
     "Config",
-    "ModelDims",
-    "FeatureExtractor",
-    "SixStreamFusionNet",
+    "HybridGaitTransformer",
     "BatchHardTripletLoss",
     "create_dataloaders",
-    "GaitDataset",
+    "WindowDataset",
     "BalancedBatchSampler",
 ]
