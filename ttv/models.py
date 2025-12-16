@@ -14,65 +14,50 @@ class HybridGaitTransformer(nn.Module):
         
         total_input_channels = len(self.streams) * cfg.input_channels
         
-        # --- Block A: Spatial Feature Extractor (CNN Stem) ---
+        # --- STRATEGY 3: Higher Dropout in CNN ---
         self.cnn_stem = nn.Sequential(
-            # Layer 1: 1000 -> 500 time steps
             nn.Conv1d(total_input_channels, 64, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm1d(64),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.4), # Was 0.3 -> Now 0.4
             
-            # Layer 2: 500 -> 250 time steps (UPDATED: Stride 2)
-            # We compress the 200Hz signal here instead of deleting data in the loader
             nn.Conv1d(64, cfg.feat_dim, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm1d(cfg.feat_dim),
             nn.ReLU()
         )
         
-        # --- Block B: Temporal Attention (Transformer) ---
-        # 1000 (Input) / 2 (L1) / 2 (L2) = 250
         reduced_seq_len = cfg.window_size // 4 
         
         self.pos_embedding = nn.Parameter(torch.randn(1, cfg.feat_dim, reduced_seq_len))
         
+        # --- STRATEGY 3: Higher Dropout in Transformer ---
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=cfg.feat_dim,
             nhead=cfg.n_head,
             dim_feedforward=512,
-            dropout=0.2,
+            dropout=0.3, # Was 0.2 -> Now 0.3
             activation='gelu',
             batch_first=True,
             norm_first=True 
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=cfg.num_layers)
         
-        # --- Block C: Authentication Head ---
         self.fc_head = nn.Linear(cfg.feat_dim, cfg.emb_dim)
 
     def forward(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
         sensor_list = [inputs[s] for s in self.streams]
         x = torch.cat(sensor_list, dim=1) 
         
-        # CNN (B, 54, 1000) -> (B, 128, 250)
         x = self.cnn_stem(x)
         
-        # Add Positional Encoding
         if x.shape[2] != self.pos_embedding.shape[2]:
-             # Safety check if window sizes shift slightly due to padding
              x = x + self.pos_embedding[:, :, :x.shape[2]]
         else:
              x = x + self.pos_embedding
         
-        # Permute for Transformer (B, 250, 128)
         x = x.permute(0, 2, 1) 
-        
-        # Transformer
         x = self.transformer(x)
-        
-        # Global Pooling
         x = x.mean(dim=1)
-        
-        # Head
         x = self.fc_head(x)
         
         return F.normalize(x, p=2, dim=1)
