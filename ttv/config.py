@@ -15,7 +15,7 @@ class Config:
 	seed: int = 42 # THIS IS THE NUMBER OF LIFE
 
 	# Training
-	batch_size: int = 16
+	batch_size: int = 64
 	epochs: int = 30
 	lr: float = 5e-4
 	weight_decay: float = 0.05  # aligns with AdamW default used in your script

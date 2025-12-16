@@ -5,28 +5,34 @@ import re
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader, Sampler 
+from tqdm import tqdm
 
 from .config import Config
 
 class GaitDataset(Dataset):
-	def __init__(self, data_dir: str, cfg: Config, file_paths: list, labels: list, mode: str = "train"):
+	def __init__(self, data_cache, cfg: Config, labels: list, mode: str = "train"):
+		self.data_cache = data_cache # Dictionary of loaded tensors
 		self.cfg = cfg
-		self.file_paths = file_paths
 		self.labels = labels
-		self.data_dir = Path(data_dir)
 		self.mode = mode 
+		self.ids = list(data_cache.keys()) # List of IDs for indexing if needed
 
 	def __len__(self):
-		return len(self.file_paths)
+		# We define length as the number of available labels/files
+		return len(self.labels)
 
 	def __getitem__(self, idx):
-		file_path = self.file_paths[idx]
-		label = self.labels[idx]
+		# 1. Get Data from RAM (Fast, No Disk I/O)
+		# Note: self.labels matches the order of keys passed to init
+		# We need a way to map idx -> dictionary key.
+		# Let's simplify: passed 'labels' corresponds to sorted keys of data_cache.
 		
-		# 1. Load data (CPU only to save GPU memory)
-		full_data = torch.load(file_path, map_location='cpu')
+		# Actually, to be safe, let's store (key, label) pairs in a list
+		key, label = self.labels[idx]
 		
-		# 2. Window Slicing
+		full_data = self.data_cache[key]
+		
+		# 2. Window Slicing (Instant)
 		first_sensor = next(iter(full_data.values()))
 		seq_len = first_sensor.shape[-1]
 		window_size = self.cfg.window_size
@@ -48,6 +54,7 @@ class GaitDataset(Dataset):
 				crop = torch.nn.functional.pad(crop, (0, pad_amt))
 			sliced_data[sensor] = crop
 
+		# 3. Augmentation
 		if self.mode == "train" and random.random() > 0.5:
 			for sensor in sliced_data.keys():
 				sliced_data[sensor] = -sliced_data[sensor]
@@ -55,15 +62,11 @@ class GaitDataset(Dataset):
 		return sliced_data, label
 
 class BalancedBatchSampler(Sampler):
-	def __init__(self, labels, batch_size, samples_per_class=4): # CHANGED DEFAULT TO 4
+	def __init__(self, labels, batch_size, samples_per_class=8):
+		# labels here is just the list of ints [1, 1, 2, 2, ...]
 		self.labels = labels
 		self.batch_size = batch_size
 		self.samples_per_class = samples_per_class
-		
-		# Ensure we don't crash if batch_size is small
-		if self.batch_size < self.samples_per_class:
-			self.samples_per_class = self.batch_size
-			
 		self.classes_per_batch = self.batch_size // self.samples_per_class
 		
 		self.label_to_indices = defaultdict(list)
@@ -71,10 +74,8 @@ class BalancedBatchSampler(Sampler):
 			self.label_to_indices[label].append(idx)
 			
 		self.unique_labels = list(self.label_to_indices.keys())
-		
-		# INCREASED MULTIPLIER: 5 -> 100 
-		# This makes the epoch "longer" (more runs) so you see more progress updates
-		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 100
+		# Restore ~15k runs feel: Visit every user ~50 times per epoch
+		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 50
 
 	def __iter__(self):
 		for _ in range(self.n_batches):
@@ -92,19 +93,35 @@ class BalancedBatchSampler(Sampler):
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
 	all_files = sorted(list(Path(data_dir).glob("*.pt")))
 	if not all_files:
-		raise RuntimeError(f"No .pt files found")
+		raise RuntimeError(f"No .pt files found in {data_dir}")
 
-	labels = []
-	valid_files = []
-	for f in all_files:
+	# --- 1. LOAD EVERYTHING TO RAM (Like Old Code) ---
+	if logger: logger.info("Loading all data into RAM...")
+	master_cache = {}
+	valid_keys = []
+	all_labels = []
+
+	for f in tqdm(all_files, desc="Loading Dataset"):
+		# Parse Label
 		stem = f.name.split('_')[0].split('.')[0]
 		numeric_part = re.sub(r'\D', '', stem)
-		if numeric_part:
-			labels.append(int(numeric_part))
-			valid_files.append(f)
+		if not numeric_part: continue
+		
+		label = int(numeric_part)
+		
+		# Load & Cache
+		# Map location cpu ensures it sits in System RAM, not GPU
+		data = torch.load(f, map_location='cpu') 
+		
+		key = f.name # Unique ID for dictionary
+		master_cache[key] = data
+		
+		valid_keys.append(key)
+		all_labels.append(label)
 
-	# Split
-	unique_ids = sorted(list(set(labels)))
+	# --- 2. SPLIT ---
+	# We split IDs, not files (Strict subject separation)
+	unique_ids = sorted(list(set(all_labels)))
 	n_ids = len(unique_ids)
 	idx_train = int(n_ids * 0.70)
 	idx_val = int(n_ids * 0.85)
@@ -112,39 +129,46 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 	train_ids = set(unique_ids[:idx_train])
 	val_ids = set(unique_ids[idx_train:idx_val])
 	
-	train_paths, train_labels = [], []
-	val_paths, val_labels = [], []
+	# Prepare lists for Dataset: [(key, label), (key, label)...]
+	train_items = [] 
+	val_items = []
 	
-	for f, l in zip(valid_files, labels):
-		if l in train_ids:
-			train_paths.append(f)
-			train_labels.append(l)
-		elif l in val_ids:
-			val_paths.append(f)
-			val_labels.append(l)
+	# Also separate labels list for the Sampler
+	train_labels_for_sampler = []
+	
+	for key, label in zip(valid_keys, all_labels):
+		if label in train_ids:
+			train_items.append((key, label))
+			train_labels_for_sampler.append(label)
+		elif label in val_ids:
+			val_items.append((key, label))
 
 	if logger:
 		logger.info(f"Split :: Train: {len(train_ids)} IDs | Val: {len(val_ids)} IDs")
+		logger.info(f"RAM Cache :: {len(master_cache)} total files loaded.")
 
-	train_ds = GaitDataset(data_dir, cfg, train_paths, train_labels, mode="train")
-	val_ds = GaitDataset(data_dir, cfg, val_paths, val_labels, mode="val")
+	# --- 3. DATASETS ---
+	# Pass the HUGE master_cache to both. They will only access their specific keys.
+	train_ds = GaitDataset(master_cache, cfg, train_items, mode="train")
+	val_ds = GaitDataset(master_cache, cfg, val_items, mode="val")
 
-	# Use smaller K=4 samples per class for safety
-	sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=4)
+	# --- 4. SAMPLER & LOADERS ---
+	sampler = BalancedBatchSampler(train_labels_for_sampler, batch_size=cfg.batch_size, samples_per_class=8)
 
+	# Since data is in RAM, num_workers=0 is usually fastest (no pickling overhead).
+	# If you want background processing, you can try 2, but 0 is safe.
 	train_loader = DataLoader(
 		train_ds, 
 		batch_sampler=sampler, 
-		num_workers=0,     # Must be 0 for stability
-		pin_memory=False   # Must be False for stability
+		num_workers=0, 
+		pin_memory=True
 	)
 	
 	val_loader = DataLoader(
 		val_ds, 
 		batch_size=cfg.batch_size, 
 		shuffle=False, 
-		num_workers=0,
-		pin_memory=False
+		num_workers=0
 	)
 
 	return train_loader, val_loader
