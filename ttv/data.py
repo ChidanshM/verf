@@ -4,7 +4,7 @@ import random
 import re
 import shutil
 import os
-import json  # <--- Added for saving splits
+import json
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader, Sampler 
@@ -37,21 +37,22 @@ class WindowDataset(Dataset):
             std = t.std(dim=1, keepdim=True) + 1e-6
             data[s] = (t - m) / std
 
-        # --- AUGMENTATION ---
+        # --- GENTLE AUGMENTATION (Prevents Overfitting) ---
         if self.mode == "train":
             # 1. Mirroring
             if random.random() > 0.5:
                 for s in data.keys():
                     data[s] = -data[s]
 
-            # 2. Random Scaling (±10%)
-            scale = random.uniform(0.9, 1.1)
+            # 2. Gentle Scaling (+/- 5%)
+            scale = random.uniform(0.95, 1.05)
             for s in data.keys():
                 data[s] = data[s] * scale
 
-            # 3. Low Gaussian Noise (2%)
+            # 3. Micro Noise (0.5%)
+            # Prevents memorizing exact float values
             for s in data.keys():
-                noise = torch.randn_like(data[s]) * 0.02
+                noise = torch.randn_like(data[s]) * 0.005
                 data[s] = data[s] + noise
 
         return data, label
@@ -62,6 +63,7 @@ class WindowDataset(Dataset):
             d[s] = torch.zeros((self.cfg.input_channels, self.cfg.window_size))
         return d
 
+# --- Sampler & Loader (Standard) ---
 class BalancedBatchSampler(Sampler):
     def __init__(self, labels, batch_size, total_windows=None, samples_per_class=8):
         self.labels = labels
@@ -74,7 +76,6 @@ class BalancedBatchSampler(Sampler):
         for idx, label in enumerate(labels):
             self.label_to_indices[label].append(idx)
         self.unique_labels = list(self.label_to_indices.keys())
-        
         if total_windows is None: total_windows = len(labels)
         self.n_batches = max(1, int(total_windows // self.batch_size))
 
@@ -95,9 +96,7 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
     if logger: logger.info(f"Generating cache at: {cache_dir}")
     cache_dir.mkdir(parents=True, exist_ok=True)
     all_files = sorted(list(data_dir.glob("*.pt")))
-    
-    if not all_files:
-        raise RuntimeError(f"No .pt files found in {data_dir}")
+    if not all_files: raise RuntimeError(f"No .pt files found in {data_dir}")
 
     stride = cfg.window_size // 2
     count = 0
@@ -107,7 +106,6 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
         try: full_data = torch.load(f, map_location='cpu')
         except: continue
         
-        # Transpose Fix
         for k, v in full_data.items():
             if v.shape[0] > v.shape[1]: full_data[k] = v.t()
         
@@ -148,7 +146,7 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
             labels.append(int(numeric_part))
             valid_files.append(f)
 
-    # --- SPLIT LOGIC ---
+    # Split
     unique_ids = sorted(list(set(labels)))
     n_ids = len(unique_ids)
     idx_train = int(n_ids * 0.70)
@@ -156,26 +154,18 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
     
     train_ids = set(unique_ids[:idx_train])
     val_ids = set(unique_ids[idx_train:idx_val])
-    test_ids = set(unique_ids[idx_val:])  # Implicitly reserved
+    test_ids = set(unique_ids[idx_val:])
     
-    # --- SAVE SPLITS TO FILE ---
-    # This creates a permanent record of who is in what set
+    # Save Split
     split_info = {
         "train_ids": sorted(list(train_ids)),
         "val_ids": sorted(list(val_ids)),
         "test_ids": sorted(list(test_ids))
     }
-    
-    # Save to the parent directory (likely checkpoints/)
-    split_file = Path(parent_dir) / "data_splits.json"
     try:
-        with open(split_file, "w") as f:
-            json.dump(split_info, f, indent=4)
-        if logger: logger.info(f"Saved data splits to: {split_file}")
-    except Exception as e:
-        if logger: logger.warning(f"Failed to save split info: {e}")
+        with open(Path(parent_dir) / "data_splits.json", "w") as f: json.dump(split_info, f, indent=4)
+    except: pass
 
-    # --- DATASET CREATION ---
     train_paths, train_labels = [], []
     val_paths, val_labels = [], []
     
@@ -187,10 +177,7 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
             val_paths.append(f)
             val_labels.append(l)
 
-    if logger: 
-        logger.info(f"Train: {len(train_paths)} windows ({len(train_ids)} subjects)")
-        logger.info(f"Val:   {len(val_paths)} windows ({len(val_ids)} subjects)")
-        logger.info(f"Test:  (Reserved)      ({len(test_ids)} subjects)")
+    if logger: logger.info(f"Train: {len(train_paths)} | Val: {len(val_paths)}")
 
     train_ds = WindowDataset(train_paths, train_labels, cfg, mode="train")
     val_ds = WindowDataset(val_paths, val_labels, cfg, mode="val")

@@ -10,15 +10,15 @@ class Config:
     # Training
     batch_size: int = 64
     epochs: int = 100
-    lr: float = 0.0005
+    lr: float = 0.0003
     # STRATEGY 1: Increase Weight Decay (Was 1e-4 -> Now 1e-3)
     # This prevents weights from growing too large, reducing overfitting.
-    weight_decay: float = 1e-3  
+    weight_decay: float = 1e-4
 
     # Loss
     # STRATEGY 2: Increase Margin (Was 0.2 -> Now 0.5)
     # This forces the model to push negatives much further away.
-    margin: float = 0.5
+    margin: float = 0.4
 
     # Data / windowing
     input_channels: int = 6 
