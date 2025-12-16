@@ -23,39 +23,32 @@ class GaitDataset(Dataset):
 		file_path = self.file_paths[idx]
 		label = self.labels[idx]
 		
-		# 1. Load FULL Session
-		full_data = torch.load(file_path)
+		# 1. SAFETY UPDATE: Force load to CPU to save GPU/Pinned RAM
+		full_data = torch.load(file_path, map_location='cpu')
 		
-		# 2. RESTORED: Window Slicing (Fixes the crash)
-		# We need to cut exactly 'window_size' (e.g., 200) from the long signal.
+		# 2. Window Slicing
 		first_sensor = next(iter(full_data.values()))
 		seq_len = first_sensor.shape[-1]
-		window_size = self.cfg.window_size # e.g. 200
+		window_size = self.cfg.window_size
 
-		# Safety check for short files
 		if seq_len < window_size:
 			start = 0
 			pad_amt = window_size - seq_len
 		else:
-			# Random crop for training, Center for val
 			if self.mode == "train":
 				start = random.randint(0, seq_len - window_size)
 			else:
 				start = (seq_len - window_size) // 2
 			pad_amt = 0
 
-		# Slice all sensors consistently
 		sliced_data = {}
 		for sensor, tensor in full_data.items():
-			# [Channels, Time] -> Slice Time dimension
 			crop = tensor[..., start : start + window_size]
-			
 			if pad_amt > 0:
 				crop = torch.nn.functional.pad(crop, (0, pad_amt))
-				
 			sliced_data[sensor] = crop
 
-		# 3. Dynamic Mirroring (Train only)
+		# 3. Dynamic Mirroring
 		if self.mode == "train" and random.random() > 0.5:
 			for sensor in sliced_data.keys():
 				sliced_data[sensor] = -sliced_data[sensor]
@@ -63,9 +56,6 @@ class GaitDataset(Dataset):
 		return sliced_data, label
 
 class BalancedBatchSampler(Sampler):
-	"""
-	Ensures P identities and K samples per batch.
-	"""
 	def __init__(self, labels, batch_size, samples_per_class=8):
 		self.labels = labels
 		self.batch_size = batch_size
@@ -77,8 +67,6 @@ class BalancedBatchSampler(Sampler):
 			self.label_to_indices[label].append(idx)
 			
 		self.unique_labels = list(self.label_to_indices.keys())
-		
-		# Define epoch length: Visit every user ~5 times per epoch (since we reuse files)
 		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 5
 
 	def __iter__(self):
@@ -87,7 +75,6 @@ class BalancedBatchSampler(Sampler):
 			indices = []
 			for class_ in classes:
 				class_indices = self.label_to_indices[class_]
-				# replace=True allows us to get 8 samples from 1 file (by cropping differently each time)
 				selected = np.random.choice(class_indices, self.samples_per_class, replace=True)
 				indices.extend(selected)
 			yield indices
@@ -100,7 +87,7 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 	if not all_files:
 		raise RuntimeError(f"No .pt files found in {data_dir}")
 
-	# Robust Label Extraction (Handles S001.pt)
+	# Label Extraction
 	labels = []
 	valid_files = []
 	for f in all_files:
@@ -110,10 +97,9 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 			labels.append(int(numeric_part))
 			valid_files.append(f)
 
-	# --- 3-WAY SPLIT (70% Train, 15% Val, 15% Test) ---
+	# Split
 	unique_ids = sorted(list(set(labels)))
 	n_ids = len(unique_ids)
-	
 	idx_train = int(n_ids * 0.70)
 	idx_val = int(n_ids * 0.85)
 	
@@ -141,7 +127,20 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 
 	sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=8)
 
-	train_loader = DataLoader(train_ds, batch_sampler=sampler, num_workers=0, pin_memory=True)
-	val_loader = DataLoader(val_ds, batch_size=cfg.batch_size, shuffle=False, num_workers=0)
+	# --- CRITICAL MEMORY FIXES ---
+	train_loader = DataLoader(
+		train_ds, 
+		batch_sampler=sampler, 
+		num_workers=0,      # <--- Disables multiprocessing (Low RAM)
+		pin_memory=False    # <--- Disables pinned RAM buffer (Low RAM)
+	)
+	
+	val_loader = DataLoader(
+		val_ds, 
+		batch_size=cfg.batch_size, 
+		shuffle=False, 
+		num_workers=0,      # <--- Disables multiprocessing
+		pin_memory=False    # <--- Disables pinned RAM buffer
+	)
 
 	return train_loader, val_loader
