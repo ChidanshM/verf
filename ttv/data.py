@@ -1,8 +1,9 @@
+# verf/ttv/data.py
 import torch
 import numpy as np
 import random
 import re
-import gc
+import shutil
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader, Sampler 
@@ -10,145 +11,160 @@ from tqdm import tqdm
 
 from .config import Config
 
-class GaitDataset(Dataset):
-	def __init__(self, samples: list, cfg: Config, mode: str = "train"):
-		# samples is a list of (tensor_data, label) tuples
-		self.samples = samples 
-		self.cfg = cfg
-		self.mode = mode 
+class WindowDataset(Dataset):
+    def __init__(self, file_paths: list, labels: list, cfg: Config, mode: str = "train"):
+        self.file_paths = file_paths
+        self.labels = labels
+        self.cfg = cfg
+        self.mode = mode 
 
-	def __len__(self):
-		return len(self.samples)
+    def __len__(self):
+        return len(self.file_paths)
 
-	def __getitem__(self, idx):
-		# 1. Get pre-loaded window from RAM
-		data, label = self.samples[idx]
-		
-		# 2. Clone to avoid modifying the cached version
-		# (Necessary because we flip signs for augmentation)
-		window_data = {k: v.clone() for k, v in data.items()}
+    def __getitem__(self, idx):
+        file_path = self.file_paths[idx]
+        label = self.labels[idx]
+        
+        try:
+            data = torch.load(file_path, map_location='cpu')
+        except Exception:
+            return self._get_dummy(), label
 
-		# 3. Dynamic Mirroring (Augmentation)
-		if self.mode == "train" and random.random() > 0.5:
-			for sensor in window_data.keys():
-				window_data[sensor] = -window_data[sensor]
+        # --- Z-Score Normalization (Per Window) ---
+        # "Normalize inputs before feeding them in"
+        for s in data.keys():
+            tensor = data[s] # Shape (C, T)
+            mean = tensor.mean(dim=1, keepdim=True)
+            std = tensor.std(dim=1, keepdim=True) + 1e-6
+            data[s] = (tensor - mean) / std
 
-		return window_data, label
+        # Augmentation (Mirroring)
+        if self.mode == "train" and random.random() > 0.5:
+            for sensor in data.keys():
+                data[sensor] = -data[sensor]
 
+        return data, label
+
+    def _get_dummy(self):
+        d = {}
+        for s in self.cfg.streams:
+            d[s] = torch.zeros((self.cfg.input_channels, self.cfg.window_size))
+        return d
+
+# ... (Keep BalancedBatchSampler and generate_cache logic same as previous turn) ...
+# Just make sure generate_cache uses cfg.window_size (500 now)
+
+# Ensure create_dataloaders uses the correct batch_size
 class BalancedBatchSampler(Sampler):
-	def __init__(self, labels, batch_size, samples_per_class=8):
-		self.labels = labels
-		self.batch_size = batch_size
-		self.samples_per_class = samples_per_class
-		self.classes_per_batch = self.batch_size // self.samples_per_class
-		
-		self.label_to_indices = defaultdict(list)
-		for idx, label in enumerate(labels):
-			self.label_to_indices[label].append(idx)
-			
-		self.unique_labels = list(self.label_to_indices.keys())
-		# Epoch length: Visit every user ~5 times
-		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 5
+    def __init__(self, labels, batch_size, samples_per_class=8):
+        self.labels = labels
+        self.batch_size = batch_size
+        self.samples_per_class = samples_per_class
+        # Ensure we don't crash if batch_size is small
+        if self.batch_size < self.samples_per_class:
+            self.samples_per_class = self.batch_size
+        
+        self.classes_per_batch = self.batch_size // self.samples_per_class
+        
+        self.label_to_indices = defaultdict(list)
+        for idx, label in enumerate(labels):
+            self.label_to_indices[label].append(idx)
+            
+        self.unique_labels = list(self.label_to_indices.keys())
+        
+        # Visit every user ~5 times per epoch
+        if not self.unique_labels:
+            self.n_batches = 0
+        else:
+            self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 5
 
-	def __iter__(self):
-		for _ in range(self.n_batches):
-			classes = np.random.choice(self.unique_labels, self.classes_per_batch, replace=False)
-			indices = []
-			for class_ in classes:
-				class_indices = self.label_to_indices[class_]
-				# We have many windows per class now, so replacement is less critical but kept for safety
-				selected = np.random.choice(class_indices, self.samples_per_class, replace=True)
-				indices.extend(selected)
-			yield indices
+    def __iter__(self):
+        for _ in range(self.n_batches):
+            classes = np.random.choice(self.unique_labels, self.classes_per_batch, replace=False)
+            indices = []
+            for class_ in classes:
+                class_indices = self.label_to_indices[class_]
+                selected = np.random.choice(class_indices, self.samples_per_class, replace=True)
+                indices.extend(selected)
+            yield indices
 
-	def __len__(self):
-		return self.n_batches
+    def __len__(self):
+        return self.n_batches
+
+def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
+    if logger: logger.info(f"Generating cache at: {cache_dir}")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    all_files = sorted(list(data_dir.glob("*.pt")))
+    
+    stride = cfg.window_size // 2
+    count = 0
+    
+    for f in tqdm(all_files, desc="Caching Windows"):
+        stem = f.name.split('_')[0].split('.')[0]
+        try:
+            full_data = torch.load(f, map_location='cpu')
+        except: continue
+        
+        first_val = next(iter(full_data.values()))
+        seq_len = first_val.shape[-1]
+        
+        for i, start in enumerate(range(0, seq_len - cfg.window_size + 1, stride)):
+            window = {}
+            for k, v in full_data.items():
+                window[k] = v[..., start : start + cfg.window_size].clone()
+            
+            torch.save(window, cache_dir / f"{stem}_{i:05d}.pt")
+            count += 1
+        del full_data
 
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
-	all_files = sorted(list(Path(data_dir).glob("*.pt")))
-	if not all_files:
-		raise RuntimeError(f"No .pt files found in {data_dir}")
+    source_dir = Path(data_dir)
+    cache_dir = source_dir.parent / "cache_windows_transformer" # New cache for new window size
+    
+    if not cache_dir.exists() or not any(cache_dir.iterdir()):
+        generate_cache(source_dir, cache_dir, cfg, logger)
+    else:
+        if logger: logger.info(f"Using cache: {cache_dir}")
 
-	if logger: logger.info("Pre-slicing data into RAM (Low Memory Mode)...")
-	
-	# Store all tiny windows here: [(window_dict, label), ...]
-	all_samples = []
-	
-	# Stride: How much to step? 
-	# Smaller stride = More data, overlapping windows. 
-	# Use 50% overlap for good data density.
-	slice_stride = cfg.window_size // 2 
-	
-	valid_labels = []
+    all_files = sorted(list(cache_dir.glob("*.pt")))
+    labels = []
+    valid_files = []
+    
+    for f in all_files:
+        stem = f.name.split('_')[0]
+        numeric_part = re.sub(r'\D', '', stem)
+        if numeric_part:
+            labels.append(int(numeric_part))
+            valid_files.append(f)
 
-	for f in tqdm(all_files, desc="Chunking Files"):
-		# 1. Parse Label
-		stem = f.name.split('_')[0].split('.')[0]
-		numeric_part = re.sub(r'\D', '', stem)
-		if not numeric_part: continue
-		label = int(numeric_part)
-		
-		# 2. Load File (CPU)
-		try:
-			full_data = torch.load(f, map_location='cpu')
-		except:
-			continue
-			
-		# 3. Slice into tiny chunks
-		first_sensor = next(iter(full_data.values()))
-		seq_len = first_sensor.shape[-1]
-		
-		# Generate windows
-		for start in range(0, seq_len - cfg.window_size + 1, slice_stride):
-			window = {}
-			for k, v in full_data.items():
-				# Slice and CLONE to detach from the big file memory
-				window[k] = v[..., start : start + cfg.window_size].clone()
-			
-			all_samples.append((window, label))
-			valid_labels.append(label)
-			
-		# 4. Aggressive Cleanup
-		del full_data
-		# Force Python to free memory NOW, don't wait
-		# This prevents the "Accumulation Crash"
-		if len(all_samples) % 100 == 0:
-			gc.collect()
+    # Split 70/15/15
+    unique_ids = sorted(list(set(labels)))
+    n_ids = len(unique_ids)
+    idx_train = int(n_ids * 0.70)
+    idx_val = int(n_ids * 0.85)
+    
+    train_ids = set(unique_ids[:idx_train])
+    val_ids = set(unique_ids[idx_train:idx_val])
+    
+    train_paths, train_labels = [], []
+    val_paths, val_labels = [], []
+    
+    for f, l in zip(valid_files, labels):
+        if l in train_ids:
+            train_paths.append(f)
+            train_labels.append(l)
+        elif l in val_ids:
+            val_paths.append(f)
+            val_labels.append(l)
 
-	# --- Split Logic ---
-	unique_ids = sorted(list(set(valid_labels)))
-	n_ids = len(unique_ids)
-	idx_train = int(n_ids * 0.70)
-	idx_val = int(n_ids * 0.85)
-	
-	train_ids = set(unique_ids[:idx_train])
-	val_ids = set(unique_ids[idx_train:idx_val])
-	
-	train_data = []
-	val_data = []
-	
-	# Separate labels for sampler
-	train_labels_list = []
-	
-	for sample in all_samples:
-		_, lbl = sample
-		if lbl in train_ids:
-			train_data.append(sample)
-			train_labels_list.append(lbl)
-		elif lbl in val_ids:
-			val_data.append(sample)
+    if logger: logger.info(f"Train: {len(train_paths)} | Val: {len(val_paths)}")
 
-	if logger:
-		logger.info(f"Generated {len(all_samples)} windows in RAM.")
-		logger.info(f"Train Windows: {len(train_data)} | Val Windows: {len(val_data)}")
+    train_ds = WindowDataset(train_paths, train_labels, cfg, mode="train")
+    val_ds = WindowDataset(val_paths, val_labels, cfg, mode="val")
 
-	train_ds = GaitDataset(train_data, cfg, mode="train")
-	val_ds = GaitDataset(val_data, cfg, mode="val")
+    sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=8)
 
-	sampler = BalancedBatchSampler(train_labels_list, batch_size=cfg.batch_size, samples_per_class=8)
+    train_loader = DataLoader(train_ds, batch_sampler=sampler, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=cfg.batch_size, shuffle=False, num_workers=2, pin_memory=True)
 
-	# Fast loading (Memory is already ready)
-	train_loader = DataLoader(train_ds, batch_sampler=sampler, num_workers=0, pin_memory=True)
-	val_loader = DataLoader(val_ds, batch_size=cfg.batch_size, shuffle=False, num_workers=0)
-
-	return train_loader, val_loader
+    return train_loader, val_loader

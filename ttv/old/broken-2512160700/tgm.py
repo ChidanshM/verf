@@ -14,7 +14,7 @@ from tqdm import tqdm
 from .checkpointing import load_checkpoint_if_requested
 from .config import CFG, build_model_signature, build_training_signature
 from .data import create_dataloaders
-from .models import HybridGaitTransformer, BatchHardTripletLoss
+from .models import SixStreamFusionNet, BatchHardTripletLoss
 
 def get_logger(name: str = "Trainer") -> logging.Logger:
 	logger = logging.getLogger(name)
@@ -57,7 +57,7 @@ def main(args):
 	use_amp = (device.type == "cuda")
 	scaler = GradScaler("cuda", enabled=use_amp)
 
-	logger.info(f"Starting Hybrid Transformer Training on: {device}")
+	logger.info(f"Starting Batch Hard Training on: {device}")
 
 	# Data
 	train_loader, val_loader = create_dataloaders(
@@ -66,7 +66,7 @@ def main(args):
 	)
 
 	# Model: Direct SixStreamNet (No Siamese Wrapper needed)
-	model = HybridGaitTransformer(cfg=CFG).to(device)
+	model = SixStreamFusionNet(cfg=CFG).to(device)
 	
 	# Loss: Batch Hard
 	criterion = BatchHardTripletLoss(margin=CFG.margin)
