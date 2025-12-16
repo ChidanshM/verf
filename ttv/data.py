@@ -49,29 +49,39 @@ class WindowDataset(Dataset):
         return d
 
 class BalancedBatchSampler(Sampler):
-    def __init__(self, labels, batch_size, samples_per_class=8):
+    def __init__(self, labels, batch_size, total_windows=None, samples_per_class=8):
         self.labels = labels
         self.batch_size = batch_size
         self.samples_per_class = samples_per_class
+        
         if self.batch_size < self.samples_per_class:
             self.samples_per_class = self.batch_size
+            
         self.classes_per_batch = self.batch_size // self.samples_per_class
         self.label_to_indices = defaultdict(list)
         for idx, label in enumerate(labels):
             self.label_to_indices[label].append(idx)
         self.unique_labels = list(self.label_to_indices.keys())
         
-        if not self.unique_labels:
-            self.n_batches = 0
-        else:
-            self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 5
+        # --- FIXED LOGIC ---
+        # 1. How many batches does it take to see ALL windows once?
+        if total_windows is None:
+            total_windows = len(labels)
+            
+        # Ensure we have at least some batches
+        self.n_batches = max(1, int(total_windows // self.batch_size))
+        
+        # 2. Safety: Ensure n_batches isn't insanely small if data is huge
+        # (With your data size, this will likely be ~1500+ batches)
 
     def __iter__(self):
         for _ in range(self.n_batches):
+            # Pick Random Classes
             classes = np.random.choice(self.unique_labels, self.classes_per_batch, replace=False)
             indices = []
             for class_ in classes:
                 class_indices = self.label_to_indices[class_]
+                # Pick Random Windows for that Class
                 selected = np.random.choice(class_indices, self.samples_per_class, replace=True)
                 indices.extend(selected)
             yield indices
@@ -97,22 +107,18 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
             full_data = torch.load(f, map_location='cpu')
         except: continue
         
-        # --- CRITICAL FIX: Transpose (Time, Channels) -> (Channels, Time) ---
+        # Fix Transpose
         for k, v in full_data.items():
-            # If shape is [80000, 6], flip to [6, 80000]
             if v.shape[0] > v.shape[1]:
                 full_data[k] = v.t()
         
         first_val = next(iter(full_data.values()))
-        seq_len = first_val.shape[-1] # Now this will be 864018, which is > 1000
+        seq_len = first_val.shape[-1]
         
         if seq_len < cfg.window_size:
             skipped_short += 1
             continue
 
-        # We can limit number of windows per file to prevent creating MILLIONS of files
-        # 72 mins * 200hz = 864k samples. With stride 500 -> 1700 windows per person.
-        # This is fine.
         for i, start in enumerate(range(0, seq_len - cfg.window_size + 1, stride)):
             window = {}
             for k, v in full_data.items():
@@ -123,17 +129,12 @@ def generate_cache(data_dir: Path, cache_dir: Path, cfg: Config, logger):
         del full_data
 
     if count == 0:
-        raise RuntimeError(
-            f"Cache generation FAILED! 0 windows created.\n"
-            f"Skipped {skipped_short} files.\n"
-            f"Please ensure Config input_channels matches your data."
-        )
+        raise RuntimeError(f"Cache generation FAILED! 0 windows created.")
 
     if logger: logger.info(f"Cache complete. Created {count} windows.")
 
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
     source_dir = Path(data_dir)
-    # Dynamic cache name
     cache_name = f"cache_win{cfg.window_size}_stride{cfg.stride}"
     cache_dir = source_dir.parent / cache_name 
     
@@ -153,6 +154,7 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
             labels.append(int(numeric_part))
             valid_files.append(f)
 
+    # Split
     unique_ids = sorted(list(set(labels)))
     n_ids = len(unique_ids)
     idx_train = int(n_ids * 0.70)
@@ -177,7 +179,13 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
     train_ds = WindowDataset(train_paths, train_labels, cfg, mode="train")
     val_ds = WindowDataset(val_paths, val_labels, cfg, mode="val")
 
-    sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=8)
+    # --- PASS TOTAL WINDOWS HERE ---
+    sampler = BalancedBatchSampler(
+        train_labels, 
+        batch_size=cfg.batch_size, 
+        total_windows=len(train_labels), # Uses actual dataset size now
+        samples_per_class=8
+    )
 
     train_loader = DataLoader(train_ds, batch_sampler=sampler, num_workers=2, pin_memory=True)
     val_loader = DataLoader(val_ds, batch_size=cfg.batch_size, shuffle=False, num_workers=2, pin_memory=True)
