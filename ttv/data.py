@@ -23,7 +23,7 @@ class GaitDataset(Dataset):
 		file_path = self.file_paths[idx]
 		label = self.labels[idx]
 		
-		# 1. SAFETY UPDATE: Force load to CPU to save GPU/Pinned RAM
+		# 1. Load data (CPU only to save GPU memory)
 		full_data = torch.load(file_path, map_location='cpu')
 		
 		# 2. Window Slicing
@@ -48,7 +48,6 @@ class GaitDataset(Dataset):
 				crop = torch.nn.functional.pad(crop, (0, pad_amt))
 			sliced_data[sensor] = crop
 
-		# 3. Dynamic Mirroring
 		if self.mode == "train" and random.random() > 0.5:
 			for sensor in sliced_data.keys():
 				sliced_data[sensor] = -sliced_data[sensor]
@@ -56,10 +55,15 @@ class GaitDataset(Dataset):
 		return sliced_data, label
 
 class BalancedBatchSampler(Sampler):
-	def __init__(self, labels, batch_size, samples_per_class=8):
+	def __init__(self, labels, batch_size, samples_per_class=4): # CHANGED DEFAULT TO 4
 		self.labels = labels
 		self.batch_size = batch_size
 		self.samples_per_class = samples_per_class
+		
+		# Ensure we don't crash if batch_size is small
+		if self.batch_size < self.samples_per_class:
+			self.samples_per_class = self.batch_size
+			
 		self.classes_per_batch = self.batch_size // self.samples_per_class
 		
 		self.label_to_indices = defaultdict(list)
@@ -67,7 +71,10 @@ class BalancedBatchSampler(Sampler):
 			self.label_to_indices[label].append(idx)
 			
 		self.unique_labels = list(self.label_to_indices.keys())
-		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 5
+		
+		# INCREASED MULTIPLIER: 5 -> 100 
+		# This makes the epoch "longer" (more runs) so you see more progress updates
+		self.n_batches = int(len(self.unique_labels) // self.classes_per_batch) * 100
 
 	def __iter__(self):
 		for _ in range(self.n_batches):
@@ -85,9 +92,8 @@ class BalancedBatchSampler(Sampler):
 def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: str, logger):
 	all_files = sorted(list(Path(data_dir).glob("*.pt")))
 	if not all_files:
-		raise RuntimeError(f"No .pt files found in {data_dir}")
+		raise RuntimeError(f"No .pt files found")
 
-	# Label Extraction
 	labels = []
 	valid_files = []
 	for f in all_files:
@@ -105,7 +111,6 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 	
 	train_ids = set(unique_ids[:idx_train])
 	val_ids = set(unique_ids[idx_train:idx_val])
-	test_ids = set(unique_ids[idx_val:])
 	
 	train_paths, train_labels = [], []
 	val_paths, val_labels = [], []
@@ -119,28 +124,27 @@ def create_dataloaders(data_dir: str, cfg: Config, parent_dir: str, timestamp: s
 			val_labels.append(l)
 
 	if logger:
-		logger.info(f"Split :: Train: {len(train_ids)} IDs | Val: {len(val_ids)} IDs | Test: {len(test_ids)} IDs")
-		logger.info(f"Files :: Train: {len(train_paths)} | Val: {len(val_paths)}")
+		logger.info(f"Split :: Train: {len(train_ids)} IDs | Val: {len(val_ids)} IDs")
 
 	train_ds = GaitDataset(data_dir, cfg, train_paths, train_labels, mode="train")
 	val_ds = GaitDataset(data_dir, cfg, val_paths, val_labels, mode="val")
 
-	sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=8)
+	# Use smaller K=4 samples per class for safety
+	sampler = BalancedBatchSampler(train_labels, batch_size=cfg.batch_size, samples_per_class=4)
 
-	# --- CRITICAL MEMORY FIXES ---
 	train_loader = DataLoader(
 		train_ds, 
 		batch_sampler=sampler, 
-		num_workers=0,      # <--- Disables multiprocessing (Low RAM)
-		pin_memory=False    # <--- Disables pinned RAM buffer (Low RAM)
+		num_workers=0,     # Must be 0 for stability
+		pin_memory=False   # Must be False for stability
 	)
 	
 	val_loader = DataLoader(
 		val_ds, 
 		batch_size=cfg.batch_size, 
 		shuffle=False, 
-		num_workers=0,      # <--- Disables multiprocessing
-		pin_memory=False    # <--- Disables pinned RAM buffer
+		num_workers=0,
+		pin_memory=False
 	)
 
 	return train_loader, val_loader
